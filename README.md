@@ -1,5 +1,7 @@
 # AppPilot
 
+> This repository also contains **[Bench Trainer](trainer/README.md)**, a separate training app for electronic test equipment (`trainer/`).
+
 A minimal Android home screen: your most-used apps as a plain text list down the right
 side, ordered by how much you use them. Drag your finger down the list and the apps
 around it magnify smoothly (like the macOS Dock), then shrink back as you move past.
