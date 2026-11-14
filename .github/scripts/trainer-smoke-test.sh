@@ -76,7 +76,7 @@ if wait_text "Safety first" 10; then echo "back ok"; else fail "Back did not ret
 step "Progress survives a restart"
 adb shell am force-stop "$PKG"
 adb shell am start -W -n "$PKG/.MainActivity"
-if wait_text "In progress" 30; then echo "progress kept"; else
+if wait_text "Learn your test equipment" 30 && wait_text "In progress" 2; then echo "progress kept"; else
   # The home screen does not show per-module status, so open the level page to check it.
   tap_text "Fluke 179" && wait_text "Choose your level" 15 && tap_text "Beginner"
   if wait_text "In progress" 15; then echo "progress kept"; else fail "progress was lost after restart"; fi
