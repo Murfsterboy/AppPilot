@@ -86,7 +86,14 @@ shot after-restart
 step "Oscilloscope lesson with the simulator"
 adb shell am force-stop "$PKG"
 adb shell am start -W -n "$PKG/.MainActivity"
-if wait_text "Hantek DSO2D15" 10 && tap_text "Hantek DSO2D15"; then
+wait_text "Learn your test equipment" 30
+# The card may be just below the fold or still rendering: retry, scrolling once if needed.
+found=0
+for attempt in 1 2 3; do
+  if wait_text "Hantek DSO2D15" 10 && tap_text "Hantek DSO2D15"; then found=1; break; fi
+  adb shell input swipe 540 1800 540 900 300; sleep 1
+done
+if [ "$found" = 1 ]; then
   wait_text "Choose your level" 15 && tap_text "Beginner" && wait_text "Your first measurements" 15 && tap_text "Your first measurements"
   if wait_text "Start from a known state" 15; then echo "scope lesson ok"; shot scope-lesson; else fail "scope lesson did not open"; fi
 else
