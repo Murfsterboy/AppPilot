@@ -13,11 +13,11 @@ step() { echo; echo "== $*"; }
 shot() { adb exec-out screencap -p > "$OUT/trainer-$1.png" && echo "screenshot: trainer-$1"; }
 fail() { echo "::error::Bench Trainer: $*"; FAILED=1; }
 dump() { adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; adb pull /sdcard/ui.xml /tmp/ui.xml >/dev/null 2>&1; }
-# Waits up to $2 seconds for text $1 to appear in the accessibility tree (WebView content is included).
+# Waits up to $2 seconds for text $1 (case-insensitive: some headings are styled in capitals) to appear in the accessibility tree (WebView content is included).
 wait_text() {
   for _ in $(seq 1 "${2:-20}"); do
     dump
-    if grep -q -- "$1" /tmp/ui.xml 2>/dev/null; then return 0; fi
+    if grep -qi -- "$1" /tmp/ui.xml 2>/dev/null; then return 0; fi
     sleep 1
   done
   return 1
@@ -28,9 +28,9 @@ tap_text() {
   local xy
   xy=$(python3 - "$1" <<'EOF'
 import re, sys, xml.etree.ElementTree as ET
-want = sys.argv[1]
+want = sys.argv[1].lower()
 for n in ET.parse('/tmp/ui.xml').iter('node'):
-    if want in (n.get('text') or '') or want in (n.get('content-desc') or ''):
+    if want in (n.get('text') or '').lower() or want in (n.get('content-desc') or '').lower():
         x1, y1, x2, y2 = map(int, re.findall(r'\d+', n.get('bounds')))
         if x2 > x1 and y2 > y1:
             print((x1 + x2) // 2, (y1 + y2) // 2); break
@@ -84,7 +84,8 @@ fi
 shot after-restart
 
 step "Oscilloscope lesson with the simulator"
-adb shell input keyevent KEYCODE_BACK; sleep 1; adb shell input keyevent KEYCODE_BACK; sleep 1
+adb shell am force-stop "$PKG"
+adb shell am start -W -n "$PKG/.MainActivity"
 if wait_text "Hantek DSO2D15" 10 && tap_text "Hantek DSO2D15"; then
   wait_text "Choose your level" 15 && tap_text "Beginner" && wait_text "Your first measurements" 15 && tap_text "Your first measurements"
   if wait_text "Start from a known state" 15; then echo "scope lesson ok"; shot scope-lesson; else fail "scope lesson did not open"; fi
