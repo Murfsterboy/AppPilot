@@ -1,6 +1,6 @@
 # AppPilot
 
-> This repository also contains **[Bench Trainer](trainer/README.md)**, a separate training app for electronic test equipment (`trainer/`).
+> This repository also contains **[Bench Trainer](trainer/README.md)**, a separate training app for electronic test equipment (`trainer/`). Install it from the **Bench Trainer – latest build** release (`BenchTrainer.apk`).
 
 A minimal Android home screen: your most-used apps as a plain text list down the right
 side, ordered by how much you use them. Drag your finger down the list and the apps

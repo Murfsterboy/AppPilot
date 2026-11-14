@@ -14,3 +14,4 @@ dependencyResolutionManagement {
 }
 rootProject.name = "AppPilot"
 include(":app")
+include(":trainer-android")

@@ -26,7 +26,17 @@ Users can add **their own equipment** (details and a photo). The training adapts
 Coming soon (listed in the app): function generator, bench power supply, soldering station,
 clamp meter, LCR meter. See [CONTENT_GUIDE.md](CONTENT_GUIDE.md) to add them.
 
-## Running it
+## Install on an Android phone
+
+1. On your phone, open this repo's **Releases** page and download `BenchTrainer.apk` from the
+   **Bench Trainer – latest build** release (built automatically by GitHub Actions on every push).
+2. Open the APK. Allow "install unknown apps" for your browser or files app if asked.
+3. Open **Bench Trainer**. Everything works offline. Adding equipment offers your camera or gallery.
+
+Each build is signed with the same key, so new versions install over old ones and keep your
+progress. The Android app (`../trainer-android`) is a thin WebView around this folder.
+
+## Running it in a browser
 
 It is a static web app with no build step and no dependencies.
 

@@ -25,11 +25,17 @@ jobs:
           chmod +x gradlew
           ./gradlew --no-daemon assembleRelease
           cp app/build/outputs/apk/release/app-release.apk AppPilot.apk
+          cp trainer-android/build/outputs/apk/release/trainer-android-release.apk BenchTrainer.apk
 
       - uses: actions/upload-artifact@v4
         with:
           name: AppPilot-apk
           path: AppPilot.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BenchTrainer-apk
+          path: BenchTrainer.apk
 
       - name: Publish "latest" release (easy phone download)
         env:
@@ -39,6 +45,16 @@ jobs:
           gh release create latest AppPilot.apk \
             --title "AppPilot – latest build" \
             --notes "Built from ${GITHUB_SHA::7} on ${GITHUB_REF_NAME}. Download AppPilot.apk on your phone and open it to install." \
+            --prerelease --target "$GITHUB_SHA"
+
+      - name: Publish "trainer-latest" release (Bench Trainer)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete trainer-latest --cleanup-tag --yes || true
+          gh release create trainer-latest BenchTrainer.apk \
+            --title "Bench Trainer – latest build" \
+            --notes "Built from ${GITHUB_SHA::7} on ${GITHUB_REF_NAME}. Download BenchTrainer.apk on your phone and open it to install." \
             --prerelease --target "$GITHUB_SHA"
 
   smoke-test:
@@ -52,6 +68,10 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: AppPilot-apk
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: BenchTrainer-apk
 
       - name: Enable KVM
         run: |
@@ -68,7 +88,9 @@ jobs:
           profile: pixel_6
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          script: bash .github/scripts/smoke-test.sh
+          script: |
+            bash .github/scripts/trainer-smoke-test.sh
+            bash .github/scripts/smoke-test.sh
 
       - uses: actions/upload-artifact@v4
         if: always()

@@ -225,7 +225,7 @@
     shell(`${lv.name}`, `#/eq/${id}`, `<p class="crumb">${esc(ctx.name)}</p>${intro ? `<p class="lead">${val(intro, ctx)}</p>` : ''}
       <ol class="mods">${mods.map((m, i) => {
         const p = modProg(id, m.id), a = adaptation(m, ctx);
-        const status = p.passed ? `<span class="pill pass">Passed ${p.best}%</span>` : p.best != null ? `<span class="pill fail">Best ${p.best}%</span>` : p.step ? '<span class="pill">In progress</span>' : '';
+        const status = p.passed ? `<span class="pill pass">Passed ${p.best}%</span>` : p.best != null ? `<span class="pill fail">Best ${p.best}%</span>` : p.step != null ? '<span class="pill">In progress</span>' : '';
         return `<li><a class="mod" href="#/eq/${id}/m/${m.id}/0"><div class="modnum">${i + 1}</div><div><div class="modtitle">${esc(m.title)} ${status}</div><p class="small">${esc(m.summary)}</p>
           <div class="small muted">${a.total - a.skipped} lessons · ${m.quiz.filter(q => ok(q, ctx)).length}-question knowledge check · ~${m.minutes} min${a.skipped ? ` · <span class="adapt">adapted: ${a.skipped} skipped (no ${esc(a.missing.join(', '))})</span>` : ''}</div></div></a></li>`;
       }).join('')}</ol>`);

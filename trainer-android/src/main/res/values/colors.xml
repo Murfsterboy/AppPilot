@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="header">#FF1D2430</color>
+    <color name="page_light">#FFF5F3EE</color>
+    <color name="page_dark">#FF14181F</color>
+    <color name="accent">#FFF2C230</color>
+</resources>
