@@ -161,6 +161,16 @@
   };
   function mountSims(root) { root.querySelectorAll('[data-sim]').forEach(el => { try { Sims[el.dataset.sim](el, JSON.parse(el.dataset.opts || '{}')); } catch (e) { el.textContent = 'Simulator failed to load.'; } }); }
 
+  /* Two-tap confirmation and inline messages (no alert/confirm: blocked in some embedded views). */
+  function twoTap(btn, label, action) {
+    let armed = false;
+    btn.addEventListener('click', () => {
+      if (!armed) { armed = true; const old = btn.textContent; btn.textContent = label; setTimeout(() => { armed = false; btn.textContent = old; }, 4000); return; }
+      action();
+    });
+  }
+  function flash(form, msg) { let el = form.querySelector('.formmsg'); if (!el) { el = document.createElement('p'); el.className = 'formmsg callout bad'; el.setAttribute('role', 'alert'); form.prepend(el); } el.textContent = msg; el.scrollIntoView({ block: 'center' }); }
+
   /* ---------------- views ---------------- */
   function shell(title, back, inner) {
     document.title = title ? `${title} · Bench Trainer` : 'Bench Trainer';
@@ -344,16 +354,16 @@
       };
       form.type.addEventListener('change', () => { collect(); eq.type = form.type.value; eq.features = {}; eq.spec = {}; eq.basedOn = ''; eq.hotspots = {}; render(); });
       if (form.basedOn) form.basedOn.addEventListener('change', () => { collect(); eq.basedOn = form.basedOn.value; eq.features = {}; eq.spec = {}; const b = T.models[eq.basedOn]; if (b) { eq.make = eq.make || b.make; eq.model = eq.model || b.model; } render(); });
-      form.photo.addEventListener('change', async () => { const f = form.photo.files[0]; if (!f) return; collect(); try { photo = await resizeImage(f); eq.hotspots = {}; } catch (e) { alert('Could not read that image.'); } render(); });
+      form.photo.addEventListener('change', async () => { const f = form.photo.files[0]; if (!f) return; collect(); let bad = false; try { photo = await resizeImage(f); eq.hotspots = {}; } catch (e) { bad = true; } render(); if (bad) flash(document.getElementById('eqform'), 'Could not read that image. Try a JPEG or PNG photo.'); });
       form.addEventListener('submit', async e => {
         e.preventDefault(); collect();
-        if (!eq.make && !eq.model) { alert('Enter at least a manufacturer or model.'); return; }
+        if (!eq.make && !eq.model) { flash(form, 'Enter at least a manufacturer or model.'); return; }
         if (photo) { await Photos.put(eq.id, photo); eq.hasPhoto = true; }
         const list = custom().filter(x => x.id !== eq.id); list.push(eq); saveCustom(list);
         go(photo && Object.keys(eq.hotspots || {}).length === 0 ? `#/map/${eq.id}` : `#/eq/${eq.id}`);
       });
       const del = document.getElementById('del');
-      if (del) del.addEventListener('click', async () => { if (!confirm('Delete this equipment and its progress?')) return; saveCustom(custom().filter(x => x.id !== eq.id)); await Photos.del(eq.id); const p = prog(); delete p[eq.id]; LS.set('progress', p); go('#/'); });
+      if (del) twoTap(del, 'Tap again to delete', async () => { saveCustom(custom().filter(x => x.id !== eq.id)); await Photos.del(eq.id); const p = prog(); delete p[eq.id]; LS.set('progress', p); go('#/'); });
     };
     render();
   }
@@ -397,7 +407,7 @@
       <fieldset><legend>Progress</legend><p class="small muted">Progress, your equipment and photos are stored on this device only.</p><button class="btn danger" id="reset">Reset all progress</button></fieldset>
       <fieldset><legend>About</legend><p class="small">Bench Trainer teaches safe, correct use of electronic test equipment. It does not replace the manufacturer's manual or workplace safety training. Always follow the manual's safety instructions and never exceed your equipment's ratings.</p></fieldset></div>`);
     $app.querySelectorAll('[data-hide]').forEach(c => c.addEventListener('change', () => { const h = new Set(LS.get('hiddenBuiltins', [])); c.checked ? h.delete(c.dataset.hide) : h.add(c.dataset.hide); LS.set('hiddenBuiltins', [...h]); }));
-    document.getElementById('reset').addEventListener('click', () => { if (confirm('Reset all progress?')) { LS.set('progress', {}); go('#/'); } });
+    twoTap(document.getElementById('reset'), 'Tap again to reset', () => { LS.set('progress', {}); go('#/'); });
   }
 
   /* ---------------- router ---------------- */
