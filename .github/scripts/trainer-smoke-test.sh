@@ -52,6 +52,11 @@ for n in ET.parse('/tmp/ui.xml').iter('node'):
 print('   screen:', ' | '.join(seen)[:1500])
 EOF
 }
+# Prints crash and WebView log lines, for diagnosing the app disappearing.
+show_logs() {
+  echo "   --- crash log ---"; adb logcat -d -b crash | tail -40
+  echo "   --- app/WebView log ---"; adb logcat -d | grep -iE "benchtrainer|chromium|cr_|webview|render.*gone|died" | tail -60
+}
 check_crash() {
   if adb logcat -d -b crash | grep -q "$PKG"; then
     adb logcat -d -b crash
@@ -92,7 +97,7 @@ adb shell am start -W -n "$PKG/.MainActivity"
 if wait_text "Learn your test equipment" 30 && wait_text "In progress" 2; then echo "progress kept"; else
   # The home screen does not show per-module status, so open the level page to check it.
   show_screen
-  tap_text "Fluke 179" || echo "   could not tap Fluke 179"
+  tap_text "Fluke 179" || { echo "   could not tap Fluke 179"; show_screen; show_logs; }
   wait_text "Choose your level" 15 || echo "   equipment page not seen"
   show_screen
   tap_text "Beginner" || echo "   could not tap Beginner"

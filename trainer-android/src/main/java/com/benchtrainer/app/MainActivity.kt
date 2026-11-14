@@ -8,7 +8,9 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.provider.MediaStore
+import android.view.ViewGroup
 import android.webkit.JavascriptInterface
+import android.webkit.RenderProcessGoneDetail
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
@@ -35,6 +37,12 @@ class MainActivity : Activity() {
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        createWebView()
+    }
+
+    /** Builds the WebView. Also used to start afresh if the web page's process dies. */
+    @SuppressLint("SetJavaScriptEnabled")
+    private fun createWebView() {
         web = WebView(this)
         setContentView(web)
 
@@ -48,6 +56,17 @@ class MainActivity : Activity() {
         web.addJavascriptInterface(NativeStore(), "BTNative")
 
         web.webViewClient = object : WebViewClient() {
+            // If Android kills the page's renderer process (e.g. low memory), recover by
+            // building a new WebView instead of letting the whole app close.
+            override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
+                if (view === web) {
+                    (view.parent as? ViewGroup)?.removeView(view)
+                    view.destroy()
+                    createWebView()
+                }
+                return true
+            }
+
             override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
                 val url = request.url
                 if (url.host != HOST) return null
