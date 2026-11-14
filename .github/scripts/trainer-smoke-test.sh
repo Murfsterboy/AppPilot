@@ -39,6 +39,19 @@ EOF
   [ -n "$xy" ] || return 1
   adb shell input tap $xy
 }
+# Prints every visible text, for diagnosing a failed step from the log.
+show_screen() {
+  dump
+  python3 - <<'EOF'
+import xml.etree.ElementTree as ET
+seen = []
+for n in ET.parse('/tmp/ui.xml').iter('node'):
+    for a in ('text', 'content-desc'):
+        v = (n.get(a) or '').strip()
+        if v and v not in seen: seen.append(v)
+print('   screen:', ' | '.join(seen)[:1500])
+EOF
+}
 check_crash() {
   if adb logcat -d -b crash | grep -q "$PKG"; then
     adb logcat -d -b crash
@@ -71,15 +84,19 @@ check_crash lesson
 
 step "Back goes to the previous screen, not out of the app"
 adb shell input keyevent KEYCODE_BACK
-if wait_text "Safety first" 10; then echo "back ok"; else fail "Back did not return to the level page"; fi
+if wait_text "knowledge check" 10; then echo "back ok"; else fail "Back did not return to the level page"; fi
 
 step "Progress survives a restart"
 adb shell am force-stop "$PKG"
 adb shell am start -W -n "$PKG/.MainActivity"
 if wait_text "Learn your test equipment" 30 && wait_text "In progress" 2; then echo "progress kept"; else
   # The home screen does not show per-module status, so open the level page to check it.
-  tap_text "Fluke 179" && wait_text "Choose your level" 15 && tap_text "Beginner"
-  if wait_text "In progress" 15; then echo "progress kept"; else fail "progress was lost after restart"; fi
+  show_screen
+  tap_text "Fluke 179" || echo "   could not tap Fluke 179"
+  wait_text "Choose your level" 15 || echo "   equipment page not seen"
+  show_screen
+  tap_text "Beginner" || echo "   could not tap Beginner"
+  if wait_text "In progress" 15; then echo "progress kept"; else show_screen; fail "progress was lost after restart"; fi
 fi
 shot after-restart
 
