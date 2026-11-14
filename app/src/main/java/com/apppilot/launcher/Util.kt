@@ -15,6 +15,7 @@ fun Context.sp(v: Float): Float =
 
 fun View.dp(v: Float): Float = context.dp(v)
 fun View.sp(v: Float): Float = context.sp(v)
+fun View.dpi(v: Int): Int = context.dpi(v)
 
 object Colors {
     fun blend(a: Int, b: Int, t: Float): Int {
