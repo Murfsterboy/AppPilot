@@ -48,6 +48,11 @@ object AppActions {
         actions += (if (isHidden) "Show in list" else "Hide from list") to {
             prefs.toggleHidden(app.key); onChanged()
         }
+        val notifHidden = app.packageName in prefs.notifHidden
+        actions += (if (notifHidden) "Show notifications in AppPilot" else "Hide notifications in AppPilot") to {
+            prefs.toggleNotifHidden(app.packageName); onChanged()
+        }
+        actions += "System notification settings" to { openNotificationSettings(activity, app.packageName) }
         actions += "App info" to {
             safeStart(activity, Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
                 Uri.parse("package:${app.packageName}")))
@@ -59,6 +64,12 @@ object AppActions {
             .setTitle(app.label)
             .setItems(actions.map { it.first }.toTypedArray()) { _, which -> actions[which].second() }
             .show()
+    }
+
+    /** The system's own per-app notification settings (where an app can be blocked completely). */
+    fun openNotificationSettings(activity: Activity, pkg: String) {
+        safeStart(activity, Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+            .putExtra(Settings.EXTRA_APP_PACKAGE, pkg))
     }
 
     fun safeStart(activity: Activity, intent: Intent) {

@@ -46,6 +46,13 @@ Each build is signed with the same key, so new versions install over old ones.
   message buttons. Contacts access is asked for only when you first use it.
 - **Gesture shortcuts**: swipe right, swipe left and double-tap on the clock side can open
   the dial pad, contacts, camera, any app, all apps, notifications or settings.
+- **Notifications** (after you allow notification access):
+  - a dot, or a count, next to apps in the list that have notifications, before or after the name;
+  - while you drag, the magnified app shows a preview of its latest notification;
+  - a feed of recent notifications, under the clock or on the list side above the apps
+    (tap to open, long-press to dismiss/hide, "Clear all");
+  - choose which apps' notifications AppPilot shows. This doesn't block them on the phone;
+    each app's long-press menu links to its system notification settings for that.
 - **Backup / restore**: save all settings, pins and hidden apps to a file and load them again
   (handy for a new phone).
 

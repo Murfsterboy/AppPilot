@@ -59,6 +59,27 @@ class Prefs(context: Context) {
     var searchContacts by BoolPref("search_contacts", true)
     var askedContacts by BoolPref("asked_contacts", false)
 
+    // ---- Notifications ----
+    var notifDots by BoolPref("notif_dots", true)
+    var notifCounts by BoolPref("notif_counts", true)
+    /** false = dot before the app name, true = after it (towards the screen edge). */
+    var notifDotAfter by BoolPref("notif_dot_after", false)
+    var notifPreview by BoolPref("notif_preview", true)
+    var feedEnabled by BoolPref("feed_enabled", true)
+    /** 0 = clock side, 1 = list side */
+    var feedSide by IntPref("feed_side", 0)
+    var feedMax by IntPref("feed_max", 4)
+    var includeOngoing by BoolPref("include_ongoing", false)
+    /** Packages whose notifications AppPilot doesn't show (the phone still receives them). */
+    var notifHidden: Set<String>
+        get() = sp.getStringSet("notif_hidden", emptySet())!!.toSet()
+        set(v) = sp.edit().putStringSet("notif_hidden", v).apply()
+
+    fun toggleNotifHidden(pkg: String) {
+        val h = notifHidden
+        notifHidden = if (pkg in h) h - pkg else h + pkg
+    }
+
     // ---- Gesture shortcuts on the clock side (see Shortcuts) ----
     var shortcutDoubleTap by StringPref("shortcut_double", "")
     var shortcutSwipeRight by StringPref("shortcut_right", Shortcuts.DIALER)

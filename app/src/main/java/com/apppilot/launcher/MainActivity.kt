@@ -1,6 +1,7 @@
 package com.apppilot.launcher
 
 import android.app.Activity
+import android.app.AlertDialog
 import android.app.role.RoleManager
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -48,6 +49,8 @@ class MainActivity : Activity() {
     private lateinit var usageBanner: TextView
     private lateinit var hint: TextView
     private lateinit var listView: MagnifyListView
+    private lateinit var rightPanel: LinearLayout
+    private lateinit var feed: NotificationFeedView
 
     private var apps: List<AppEntry> = emptyList()
     private var insetTop = 0
@@ -58,6 +61,8 @@ class MainActivity : Activity() {
     private var rankDirty = true
     private var hadUsageAccess = false
     private var returning = false
+
+    private val notificationListener: () -> Unit = { refreshNotifications() }
 
     private val prefsListener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ -> rankDirty = true }
 
@@ -92,6 +97,7 @@ class MainActivity : Activity() {
         register(packageReceiver, pkgFilter)
         register(screenOffReceiver, IntentFilter(Intent.ACTION_SCREEN_OFF))
         prefs.registerListener(prefsListener)
+        NotificationStore.addListener(notificationListener)
     }
 
     private fun register(receiver: BroadcastReceiver, filter: IntentFilter) {
@@ -108,6 +114,8 @@ class MainActivity : Activity() {
         super.onResume()
         applySettings()
         updateBanners()
+        NotificationStore.ensureBound(this)
+        refreshNotifications()
         val usage = repo.hasUsageAccess()
         if (usage != hadUsageAccess) rankDirty = true
         hadUsageAccess = usage
@@ -125,6 +133,7 @@ class MainActivity : Activity() {
         runCatching { unregisterReceiver(packageReceiver) }
         runCatching { unregisterReceiver(screenOffReceiver) }
         prefs.unregisterListener(prefsListener)
+        NotificationStore.removeListener(notificationListener)
         repo.shutdown()
         super.onDestroy()
     }
@@ -207,6 +216,20 @@ class MainActivity : Activity() {
             }
         }
 
+        rightPanel = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(listView, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
+        }
+
+        feed = NotificationFeedView(this).apply {
+            visibility = View.GONE
+            listener = object : NotificationFeedView.Listener {
+                override fun onOpen(e: NotificationEntry) = NotificationStore.open(this@MainActivity, e, prefs)
+                override fun onMenu(e: NotificationEntry) = showNotificationMenu(e)
+                override fun onClearAll() = NotificationStore.dismissAll(prefs)
+            }
+        }
+
         root.setOnApplyWindowInsetsListener { _, insets ->
             if (Build.VERSION.SDK_INT >= 30) {
                 val bars = insets.getInsets(WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout())
@@ -239,8 +262,15 @@ class MainActivity : Activity() {
         leftPanel.setPadding(dpi(28), insetTop + dpi(56), dpi(16), insetBottom + dpi(28))
         // Keep the list a little away from the screen edge so the back gesture doesn't grab it.
         val inner = dpi(18); val outer = dpi(26)
-        if (prefs.listOnLeft) listView.setPadding(outer, insetTop + dpi(12), inner, insetBottom + dpi(12))
-        else listView.setPadding(inner, insetTop + dpi(12), outer, insetBottom + dpi(12))
+        rightPanel.setPadding(0, insetTop, 0, insetBottom)
+        if (prefs.listOnLeft) {
+            listView.setPadding(outer, dpi(12), inner, dpi(12))
+            if (feed.parent === rightPanel) feed.setPadding(outer, dpi(16), inner, 0)
+        } else {
+            listView.setPadding(inner, dpi(12), outer, dpi(12))
+            if (feed.parent === rightPanel) feed.setPadding(inner, dpi(16), outer, 0)
+        }
+        if (feed.parent === leftContent) feed.setPadding(0, 0, 0, 0)
     }
 
     private fun setupLeftGestures() {
@@ -335,10 +365,10 @@ class MainActivity : Activity() {
 
     private fun animateIn() {
         val dir = if (prefs.listOnLeft) -1 else 1
-        listView.animate().cancel()
-        listView.alpha = 0f
-        listView.translationX = dir * dp(28f)
-        listView.animate().alpha(1f).translationX(0f).setDuration(280)
+        rightPanel.animate().cancel()
+        rightPanel.alpha = 0f
+        rightPanel.translationX = dir * dp(28f)
+        rightPanel.animate().alpha(1f).translationX(0f).setDuration(280)
             .setInterpolator(DecelerateInterpolator(2.2f)).start()
         leftContent.animate().cancel()
         leftContent.alpha = 0f
@@ -362,7 +392,7 @@ class MainActivity : Activity() {
         }
 
         leftPanel.setBackgroundColor(leftColor)
-        listView.setBackgroundColor(rightColor)
+        rightPanel.setBackgroundColor(rightColor)
 
         val lt = prefs.leftText
         clock.setTextColor(lt); date.setTextColor(lt); hint.setTextColor(lt)
@@ -389,7 +419,12 @@ class MainActivity : Activity() {
             pill = prefs.highlightPill
             haptics = prefs.haptics
             verticalBias = prefs.verticalBias
+            showBadges = prefs.notifDots
+            showCounts = prefs.notifCounts
+            badgeAfterName = prefs.notifDotAfter
+            showPreview = prefs.notifPreview
         }
+        placeFeed()
 
         // Arrange [clock side | list], or [list | clock side] in left-handed mode.
         // Only rebuilt when it changes, to avoid a relayout every time you come home.
@@ -401,9 +436,9 @@ class MainActivity : Activity() {
             val leftLp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 100f - p)
             val listLp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, p.toFloat())
             if (prefs.listOnLeft) {
-                root.addView(listView, listLp); root.addView(leftPanel, leftLp)
+                root.addView(rightPanel, listLp); root.addView(leftPanel, leftLp)
             } else {
-                root.addView(leftPanel, leftLp); root.addView(listView, listLp)
+                root.addView(leftPanel, leftLp); root.addView(rightPanel, listLp)
             }
         }
         applyPadding()
@@ -448,7 +483,60 @@ class MainActivity : Activity() {
             }
             apps = ranked
             listView.setItems(ranked.map { MagnifyListView.Item(it.label, it.icon) })
+            refreshNotifications()
         }
+    }
+
+    // ------------------------------------------------------------------ notifications
+
+    /** Puts the feed under the clock, or above the app list, per settings. */
+    private fun placeFeed() {
+        val target: LinearLayout? = when {
+            !prefs.feedEnabled -> null
+            prefs.feedSide == 1 -> rightPanel
+            else -> leftContent
+        }
+        if (feed.parent !== target) {
+            (feed.parent as? android.view.ViewGroup)?.removeView(feed)
+            when (target) {
+                rightPanel -> rightPanel.addView(feed, 0, LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+                leftContent -> leftContent.addView(feed, LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply { topMargin = dpi(28); marginEnd = dpi(8) })
+            }
+        }
+    }
+
+    private fun refreshNotifications() {
+        if (!::feed.isInitialized) return
+        val visible = if (NotificationStore.isConnected) NotificationStore.visible(prefs) else emptyList()
+
+        if (feed.parent != null) {
+            val color = if (feed.parent === rightPanel) prefs.listText else prefs.leftText
+            feed.bind(visible, prefs.feedMax, color, prefs.highlight)
+        }
+
+        val byPkg = visible.groupBy { it.packageName }
+        val counts = IntArray(apps.size) { byPkg[apps[it].packageName]?.size ?: 0 }
+        val latest = Array<CharSequence?>(apps.size) { byPkg[apps[it].packageName]?.firstOrNull()?.summary }
+        listView.setBadges(counts, latest)
+    }
+
+    private fun showNotificationMenu(e: NotificationEntry) {
+        val actions = mutableListOf<Pair<String, () -> Unit>>()
+        actions += "Open" to { NotificationStore.open(this, e, prefs) }
+        if (e.clearable) actions += "Dismiss" to { NotificationStore.dismiss(e) }
+        actions += "Hide ${e.appLabel} notifications in AppPilot" to {
+            prefs.toggleNotifHidden(e.packageName); refreshNotifications()
+        }
+        actions += "${e.appLabel} notification settings" to {
+            AppActions.openNotificationSettings(this, e.packageName)
+        }
+        AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
+            .setTitle(e.appLabel)
+            .setItems(actions.map { it.first }.toTypedArray()) { _, which -> actions[which].second() }
+            .show()
     }
 
     private fun updateBanners() {

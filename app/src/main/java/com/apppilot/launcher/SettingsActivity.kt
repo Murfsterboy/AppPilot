@@ -123,6 +123,42 @@ class SettingsActivity : Activity() {
             prefs.listOnLeft = it; applyPreview()
         }
 
+        header("Notifications")
+        val notifAccess = NotificationStore.hasAccess(this)
+        action("Notification access", if (notifAccess) "Allowed ✓ — AppPilot can show your notifications"
+        else "Not allowed — tap to let AppPilot show notification dots, previews and the feed") {
+            AppActions.safeStart(this, NotificationStore.accessSettingsIntent(this))
+        }
+        action("Choose which apps show notifications", notifAppsSummary()) { chooseNotificationApps() }
+        note("This only controls what AppPilot shows. To stop an app notifying you at all, long-press it and choose System notification settings.")
+        switch("Dots in the app list", "A dot next to apps with notifications", prefs.notifDots) {
+            prefs.notifDots = it; rebuild()
+        }
+        if (prefs.notifDots) {
+            switch("Show counts", "A number instead of a dot when there's more than one", prefs.notifCounts) {
+                prefs.notifCounts = it
+            }
+            choice("Dot position", listOf("Before the app name", "After the app name (by the edge)"),
+                if (prefs.notifDotAfter) 1 else 0) { prefs.notifDotAfter = it == 1 }
+        }
+        switch("Preview while dragging", "The magnified app shows its latest notification", prefs.notifPreview) {
+            prefs.notifPreview = it
+        }
+        switch("Notification feed", "Recent notifications on the home screen", prefs.feedEnabled) {
+            prefs.feedEnabled = it; rebuild()
+        }
+        if (prefs.feedEnabled) {
+            val clockSide = if (prefs.listOnLeft) "Right side, under the clock" else "Left side, under the clock"
+            val listSide = if (prefs.listOnLeft) "Left side, above the app list" else "Right side, above the app list"
+            choice("Feed position", listOf(clockSide, listSide), prefs.feedSide.coerceIn(0, 1)) { prefs.feedSide = it }
+            slider("Feed size", 1f, 8f, 1f, prefs.feedMax.toFloat(), {
+                "${it.toInt()} notification${if (it.toInt() == 1) "" else "s"}"
+            }) { prefs.feedMax = it.toInt() }
+        }
+        switch("Include ongoing notifications", "Music players, navigation, downloads and similar", prefs.includeOngoing) {
+            prefs.includeOngoing = it
+        }
+
         header("Ranking")
         choice("Rank apps by", listOf("Times opened", "Screen time"), prefs.rankBy) { prefs.rankBy = it }
         switch("Keep order steady", "Only re-rank while the screen is off, so apps never move as you reach for them",
@@ -181,6 +217,35 @@ class SettingsActivity : Activity() {
         }
 
         scroll.post { scroll.scrollTo(0, y) }
+    }
+
+    private fun notifAppsSummary(): String {
+        val n = prefs.notifHidden.size
+        return if (n == 0) "All apps" else "$n app${if (n == 1) "" else "s"} hidden"
+    }
+
+    private fun chooseNotificationApps() {
+        repo.loadAll { apps ->
+            val hidden = prefs.notifHidden
+            // Include hidden packages that aren't launchable apps (e.g. system services) so they can be re-enabled.
+            val extra = hidden.filter { pkg -> apps.none { it.packageName == pkg } }
+            val pkgs = (apps.map { it.packageName } + extra).distinct()
+            val labels = pkgs.map { pkg -> apps.firstOrNull { it.packageName == pkg }?.label ?: NotificationStore.label(this, pkg) }
+            val order = pkgs.indices.sortedBy { labels[it].lowercase() }
+            val sortedPkgs = order.map { pkgs[it] }
+            val sortedLabels = order.map { labels[it] }.toTypedArray()
+            val checked = BooleanArray(sortedPkgs.size) { sortedPkgs[it] !in hidden }
+            AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
+                .setTitle("Show notifications from")
+                .setMultiChoiceItems(sortedLabels, checked) { _, which, isChecked -> checked[which] = isChecked }
+                .setPositiveButton("Save") { _, _ ->
+                    prefs.notifHidden = sortedPkgs.filterIndexed { i, _ -> !checked[i] }.toSet()
+                    rebuild()
+                }
+                .setNeutralButton("All") { _, _ -> prefs.notifHidden = emptySet(); rebuild() }
+                .setNegativeButton("Cancel", null)
+                .show()
+        }
     }
 
     private fun startForResult(intent: Intent, code: Int) {

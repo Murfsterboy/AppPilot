@@ -26,6 +26,7 @@ adb install -r AppPilot.apk || { echo "::error::install failed"; exit 1; }
 adb shell appops set $PKG GET_USAGE_STATS allow
 adb shell pm grant $PKG android.permission.READ_CONTACTS || true
 adb shell cmd package set-home-activity "$PKG/.MainActivity"
+adb shell cmd notification allow_listener "$PKG/$PKG.NotificationService" || true
 adb shell settings put system screen_off_timeout 1800000
 
 step "Add a test contact"
@@ -78,6 +79,18 @@ shot 04-launched
 if resumed | grep -q "$PKG"; then fail "Tapping the list didn't open an app"; fi
 home
 check_crash "launching"
+
+step "Notifications: a posted notification appears in the home-screen feed"
+adb shell "cmd notification post -t 'Alex Pilot' lunch 'Are we still on for lunch?'" >/dev/null
+sleep 3
+home
+sleep 2
+shot 05a-notification-feed
+adb shell uiautomator dump /sdcard/ui2.xml >/dev/null 2>&1
+adb pull /sdcard/ui2.xml "$OUT/feed-accessibility.xml" >/dev/null 2>&1 || true
+grep -q "Are we still on for lunch" "$OUT/feed-accessibility.xml" 2>/dev/null \
+  || fail "The posted notification didn't show up in AppPilot's feed"
+check_crash "notifications"
 
 step "All apps: swipe up on the clock side, then search"
 adb shell input swipe 240 1900 240 800 150

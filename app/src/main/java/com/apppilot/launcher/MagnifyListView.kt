@@ -73,6 +73,15 @@ class MagnifyListView(context: Context) : View(context) {
     var pill = true
         set(v) { field = v; invalidate() }
     var haptics = true
+    var showBadges = true
+        set(v) { field = v; invalidate() }
+    var showCounts = true
+        set(v) { field = v; invalidate() }
+    /** false = badge before the name (towards the screen centre), true = between the name and the edge. */
+    var badgeAfterName = false
+        set(v) { field = v; invalidate() }
+    var showPreview = true
+        set(v) { field = v; invalidate() }
     /** 0 = top, 0.5 = centre, 1 = bottom. */
     var verticalBias = 0.55f
         set(v) { field = v.coerceIn(0f, 1f); updateGestureExclusion(); invalidate() }
@@ -99,6 +108,14 @@ class MagnifyListView(context: Context) : View(context) {
     private val regular = Typeface.create("sans-serif", Typeface.NORMAL)
     private val medium = Typeface.create("sans-serif-medium", Typeface.NORMAL)
     private val tmpRect = RectF()
+    private val badgePaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val badgeTextPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
+        textAlign = Paint.Align.CENTER
+        typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+    }
+    private val previewPaint = TextPaint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG)
+    private var badges = IntArray(0)
+    private var previews = arrayOfNulls<CharSequence>(0)
 
     // Interaction / animation state.
     private var visibleCount = 0
@@ -147,6 +164,8 @@ class MagnifyListView(context: Context) : View(context) {
             scales = FloatArray(n); rowTop = FloatArray(n); rowHeight = FloatArray(n); cum = FloatArray(n + 1)
         }
         cacheSize = FloatArray(n); cacheAvail = FloatArray(n); cacheText = arrayOfNulls(n); cacheBold = BooleanArray(n)
+        badges = IntArray(n); previews = arrayOfNulls(n)
+        previewCacheRow = -1
         if (selected >= n) selected = -1
         if (highlighted >= n) highlighted = -1
         if (a11yFocused >= n) a11yFocused = -1
@@ -154,6 +173,15 @@ class MagnifyListView(context: Context) : View(context) {
         updateGestureExclusion()
         invalidate()
         if (a11y?.isEnabled == true) sendAccessibilityEvent(AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED)
+    }
+
+    /** Notification counts and latest-notification previews, parallel to the items. */
+    fun setBadges(counts: IntArray, latest: Array<CharSequence?>) {
+        if (counts.size != items.size || latest.size != items.size) return
+        badges = counts
+        previews = latest
+        previewCacheRow = -1
+        invalidate()
     }
 
     /** Snap back to the flat list immediately (e.g. when the home screen is left). */
@@ -293,34 +321,100 @@ class MagnifyListView(context: Context) : View(context) {
             Colors.withAlpha(textColor, alpha)
         }
 
+        // Notification badge: a dot, or a small pill with the count.
+        val badge = if (showBadges) badges.getOrElse(i) { 0 } else 0
+        val badgeText = if (badge > 1 && showCounts) (if (badge > 99) "99+" else badge.toString()) else null
+        val pillH = baseTextSizePx * 0.82f * s
+        var badgeW = 0f
+        if (badge > 0) {
+            badgeW = if (badgeText != null) {
+                badgeTextPaint.textSize = pillH * 0.68f
+                max(pillH, badgeTextPaint.measureText(badgeText) + pillH * 0.6f)
+            } else baseTextSizePx * 0.44f * s
+        }
+        val badgeGap = if (badge > 0) baseTextSizePx * 0.45f * s else 0f
+        val afterReserve = if (badge > 0 && badgeAfterName) badgeW + badgeGap else 0f
+        val beforeReserve = if (badge > 0 && !badgeAfterName) badgeW + badgeGap else 0f
+
         val edge = if (mirrored) paddingLeft.toFloat() else (width - paddingRight).toFloat()
         val icon = if (showIcons) item.icon else null
         val iconSize = if (icon != null) baseTextSizePx * 1.45f * s else 0f
         val gap = if (icon != null) baseTextSizePx * 0.6f * s else 0f
-        val anchor = if (mirrored) edge + iconSize + gap else edge - iconSize - gap
-        val avail = if (mirrored) width - paddingRight - anchor else anchor - paddingLeft
+        val inset = iconSize + gap + afterReserve
+        val anchor = if (mirrored) edge + inset else edge - inset
+        val avail = (if (mirrored) width - paddingRight - anchor else anchor - paddingLeft) - beforeReserve
         val label = fit(i, item.label, avail)
+        val labelW = textPaint.measureText(label, 0, label.length)
         textPaint.textAlign = if (mirrored) Paint.Align.LEFT else Paint.Align.RIGHT
 
+        // Preview of the latest notification under the magnified app's name.
+        val previewSrc = if (showPreview && isHighlighted && strength > 0.05f) previews.getOrNull(i) else null
+        val previewSize = baseTextSizePx * max(0.8f, s * 0.42f)
+        val shift = if (previewSrc != null) previewSize * 0.75f * strength else 0f
+        val labelCy = cy - shift
+
         if (isHighlighted && pill) {
-            val tw = textPaint.measureText(label, 0, label.length)
             val padH = baseTextSizePx * 0.55f * s
             val half = textPaint.textSize * 0.82f
-            if (mirrored) tmpRect.set(edge - padH, cy - half, anchor + tw + padH, cy + half)
-            else tmpRect.set(anchor - tw - padH, cy - half, edge + padH, cy + half)
+            val extra = if (previewSrc != null) previewSize * 1.5f * strength else 0f
+            val textStart = if (mirrored) anchor + labelW + beforeReserve else anchor - labelW - beforeReserve
+            if (mirrored) tmpRect.set(edge - padH, labelCy - half, textStart + padH, labelCy + half + extra)
+            else tmpRect.set(textStart - padH, labelCy - half, edge + padH, labelCy + half + extra)
             pillPaint.color = Colors.withAlpha(highlightColor, 0.18f * strength)
             canvas.drawRoundRect(tmpRect, half, half, pillPaint)
         }
 
-        val baseline = cy - (textPaint.descent() + textPaint.ascent()) / 2f
+        val baseline = labelCy - (textPaint.descent() + textPaint.ascent()) / 2f
         canvas.drawText(label, 0, label.length, anchor, baseline, textPaint)
+
+        if (previewSrc != null) {
+            previewPaint.textSize = previewSize
+            previewPaint.color = Colors.withAlpha(textColor, 0.75f * strength)
+            previewPaint.textAlign = textPaint.textAlign
+            val pAvail = if (mirrored) width - paddingRight - anchor else anchor - paddingLeft
+            val text = fitPreview(i, previewSrc, pAvail)
+            val pBaseline = labelCy + textPaint.textSize * 0.55f + previewSize * 1.0f
+            canvas.drawText(text, 0, text.length, anchor, pBaseline, previewPaint)
+        }
+
+        if (badge > 0) {
+            val dir = if (mirrored) 1f else -1f // direction from the edge towards the text start
+            val bcx = if (badgeAfterName) anchor - dir * (badgeGap + badgeW / 2f)
+            else anchor + dir * (labelW + badgeGap + badgeW / 2f)
+            badgePaint.color = Colors.withAlpha(highlightColor, 0.85f + 0.15f * weight)
+            if (badgeText != null) {
+                tmpRect.set(bcx - badgeW / 2f, labelCy - pillH / 2f, bcx + badgeW / 2f, labelCy + pillH / 2f)
+                canvas.drawRoundRect(tmpRect, pillH / 2f, pillH / 2f, badgePaint)
+                badgeTextPaint.color = if (Colors.isLight(highlightColor)) Color.BLACK else Color.WHITE
+                val by = labelCy - (badgeTextPaint.descent() + badgeTextPaint.ascent()) / 2f
+                canvas.drawText(badgeText, bcx, by, badgeTextPaint)
+            } else {
+                canvas.drawCircle(bcx, labelCy, badgeW / 2f, badgePaint)
+            }
+        }
 
         if (icon != null) {
             val left = if (mirrored) edge else edge - iconSize
-            tmpRect.set(left, cy - iconSize / 2f, left + iconSize, cy + iconSize / 2f)
+            tmpRect.set(left, labelCy - iconSize / 2f, left + iconSize, labelCy + iconSize / 2f)
             iconPaint.alpha = (textPaint.alpha).coerceAtLeast(150)
             canvas.drawBitmap(icon, null, tmpRect, iconPaint)
         }
+    }
+
+    private var previewCacheRow = -1
+    private var previewCacheSrc: CharSequence? = null
+    private var previewCacheAvail = 0f
+    private var previewCacheSize = 0f
+    private var previewCacheText: CharSequence = ""
+
+    private fun fitPreview(i: Int, src: CharSequence, avail: Float): CharSequence {
+        if (avail <= 0f) return ""
+        if (i == previewCacheRow && src === previewCacheSrc && abs(avail - previewCacheAvail) < 1f &&
+            abs(previewPaint.textSize - previewCacheSize) < 0.75f
+        ) return previewCacheText
+        previewCacheRow = i; previewCacheSrc = src; previewCacheAvail = avail; previewCacheSize = previewPaint.textSize
+        previewCacheText = TextUtils.ellipsize(src, previewPaint, avail, TextUtils.TruncateAt.END)
+        return previewCacheText
     }
 
     private fun fit(i: Int, full: String, avail: Float): CharSequence {
@@ -414,6 +508,13 @@ class MagnifyListView(context: Context) : View(context) {
 
     // ------------------------------------------------------------------ accessibility
 
+    private fun describeRow(i: Int): String {
+        val count = badges.getOrElse(i) { 0 }
+        if (count == 0 || !showBadges) return items[i].label
+        val latest = previews.getOrNull(i)?.let { ". $it" } ?: ""
+        return "${items[i].label}, $count notification${if (count == 1) "" else "s"}$latest"
+    }
+
     private fun rowRect(i: Int) = Rect(0, rowTop[i].toInt(), width, (rowTop[i] + rowHeight[i]).toInt())
 
     private fun rowAt(y: Float): Int {
@@ -440,7 +541,7 @@ class MagnifyListView(context: Context) : View(context) {
         e.className = Button::class.java.name
         e.setSource(this, id)
         e.isEnabled = true
-        if (id in items.indices) e.text.add(items[id].label)
+        if (id in items.indices) e.text.add(describeRow(id))
         p.requestSendAccessibilityEvent(this, e)
     }
 
@@ -483,7 +584,7 @@ class MagnifyListView(context: Context) : View(context) {
             info.packageName = context.packageName
             info.className = Button::class.java.name
             info.setParent(host)
-            info.text = items[id].label
+            info.text = describeRow(id)
             val r = rowRect(id)
             @Suppress("DEPRECATION")
             info.setBoundsInParent(r)
