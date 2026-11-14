@@ -10,12 +10,19 @@ import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.Typeface
 import android.os.Build
+import android.os.Bundle
 import android.text.TextPaint
 import android.text.TextUtils
 import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.View
+import android.widget.Button
 import android.view.ViewConfiguration
+import android.view.accessibility.AccessibilityEvent
+import android.view.accessibility.AccessibilityManager
+import android.view.accessibility.AccessibilityNodeInfo
+import android.view.accessibility.AccessibilityNodeInfo.AccessibilityAction
+import android.view.accessibility.AccessibilityNodeProvider
 import kotlin.math.abs
 import kotlin.math.exp
 import kotlin.math.floor
@@ -121,8 +128,15 @@ class MagnifyListView(context: Context) : View(context) {
         }
     }
 
+    // Accessibility (each row is a "virtual" view so TalkBack can read and open it).
+    private val a11y: AccessibilityManager? = context.getSystemService(AccessibilityManager::class.java)
+    private var a11yFocused = -1
+    private var hovered = -1
+    private var a11yBoundsStale = false
+
     init {
         isHapticFeedbackEnabled = true
+        importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
         contentDescription = "Most used apps"
     }
 
@@ -135,8 +149,11 @@ class MagnifyListView(context: Context) : View(context) {
         cacheSize = FloatArray(n); cacheAvail = FloatArray(n); cacheText = arrayOfNulls(n); cacheBold = BooleanArray(n)
         if (selected >= n) selected = -1
         if (highlighted >= n) highlighted = -1
+        if (a11yFocused >= n) a11yFocused = -1
+        hovered = -1
         updateGestureExclusion()
         invalidate()
+        if (a11y?.isEnabled == true) sendAccessibilityEvent(AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED)
     }
 
     /** Snap back to the flat list immediately (e.g. when the home screen is left). */
@@ -145,6 +162,7 @@ class MagnifyListView(context: Context) : View(context) {
         touching = false; cancelled = false
         strength = 0f; targetStrength = 0f
         selected = -1; highlighted = -1
+        a11yFocused = -1; hovered = -1
         lastFrameNanos = 0L
         invalidate()
     }
@@ -208,7 +226,16 @@ class MagnifyListView(context: Context) : View(context) {
         }
 
         val animating = strength != targetStrength || drawFocus != focus
-        if (animating) postInvalidateOnAnimation() else lastFrameNanos = 0L
+        if (animating) {
+            postInvalidateOnAnimation()
+            a11yBoundsStale = a11yFocused >= 0
+        } else {
+            lastFrameNanos = 0L
+            if (a11yBoundsStale) { // rows moved: let TalkBack redraw its focus box
+                a11yBoundsStale = false
+                sendRowEvent(a11yFocused, AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED)
+            }
+        }
     }
 
     private fun layoutRows(n: Int) {
@@ -380,10 +407,145 @@ class MagnifyListView(context: Context) : View(context) {
 
     private fun release() {
         touching = false
-        targetStrength = 0f
+        targetStrength = if (a11yFocused >= 0) 1f else 0f
         selected = -1
         invalidate()
     }
+
+    // ------------------------------------------------------------------ accessibility
+
+    private fun rowRect(i: Int) = Rect(0, rowTop[i].toInt(), width, (rowTop[i] + rowHeight[i]).toInt())
+
+    private fun rowAt(y: Float): Int {
+        for (i in 0 until visibleCount) if (y >= rowTop[i] && y < rowTop[i] + rowHeight[i]) return i
+        return -1
+    }
+
+    /** Magnify the row TalkBack is on, so low-vision users see it too. */
+    private fun showA11yFocus(i: Int) {
+        focus = i + 0.5f
+        if (strength < 0.01f) drawFocus = focus
+        highlighted = i
+        targetStrength = 1f
+        lastFrameNanos = 0L
+        invalidate()
+    }
+
+    private fun sendRowEvent(id: Int, type: Int) {
+        if (a11y?.isEnabled != true || id < 0) return
+        val p = parent ?: return
+        @Suppress("DEPRECATION")
+        val e = AccessibilityEvent.obtain(type)
+        e.packageName = context.packageName
+        e.className = Button::class.java.name
+        e.setSource(this, id)
+        e.isEnabled = true
+        if (id in items.indices) e.text.add(items[id].label)
+        p.requestSendAccessibilityEvent(this, e)
+    }
+
+    override fun dispatchHoverEvent(event: MotionEvent): Boolean {
+        if (a11y?.isTouchExplorationEnabled != true || visibleCount == 0) return super.dispatchHoverEvent(event)
+        when (event.actionMasked) {
+            MotionEvent.ACTION_HOVER_ENTER, MotionEvent.ACTION_HOVER_MOVE -> {
+                val i = rowAt(event.y)
+                if (i != hovered) {
+                    val old = hovered
+                    hovered = i
+                    sendRowEvent(old, AccessibilityEvent.TYPE_VIEW_HOVER_EXIT)
+                    sendRowEvent(i, AccessibilityEvent.TYPE_VIEW_HOVER_ENTER)
+                }
+            }
+            MotionEvent.ACTION_HOVER_EXIT -> {
+                sendRowEvent(hovered, AccessibilityEvent.TYPE_VIEW_HOVER_EXIT)
+                hovered = -1
+            }
+        }
+        return true
+    }
+
+    private val nodeProvider = object : AccessibilityNodeProvider() {
+        override fun createAccessibilityNodeInfo(id: Int): AccessibilityNodeInfo? {
+            val host = this@MagnifyListView
+            if (id == View.NO_ID) {
+                @Suppress("DEPRECATION")
+                val info = AccessibilityNodeInfo.obtain(host)
+                onInitializeAccessibilityNodeInfo(info)
+                info.className = android.widget.ListView::class.java.name
+                for (i in 0 until visibleCount) info.addChild(host, i)
+                @Suppress("DEPRECATION")
+                info.collectionInfo = AccessibilityNodeInfo.CollectionInfo.obtain(visibleCount, 1, false)
+                return info
+            }
+            if (id !in 0 until visibleCount) return null
+            @Suppress("DEPRECATION")
+            val info = AccessibilityNodeInfo.obtain(host, id)
+            info.packageName = context.packageName
+            info.className = Button::class.java.name
+            info.setParent(host)
+            info.text = items[id].label
+            val r = rowRect(id)
+            @Suppress("DEPRECATION")
+            info.setBoundsInParent(r)
+            val loc = IntArray(2)
+            getLocationOnScreen(loc)
+            r.offset(loc[0], loc[1])
+            info.setBoundsInScreen(r)
+            info.isEnabled = true
+            info.isFocusable = true
+            info.isClickable = true
+            info.isLongClickable = true
+            info.isVisibleToUser = true
+            info.addAction(AccessibilityAction.ACTION_CLICK)
+            info.addAction(AccessibilityAction(AccessibilityNodeInfo.ACTION_LONG_CLICK, "Pin, hide or uninstall"))
+            if (a11yFocused == id) {
+                info.isAccessibilityFocused = true
+                info.addAction(AccessibilityAction.ACTION_CLEAR_ACCESSIBILITY_FOCUS)
+            } else {
+                info.addAction(AccessibilityAction.ACTION_ACCESSIBILITY_FOCUS)
+            }
+            @Suppress("DEPRECATION")
+            info.collectionItemInfo = AccessibilityNodeInfo.CollectionItemInfo.obtain(id, 1, 0, 1, false)
+            return info
+        }
+
+        override fun performAction(id: Int, action: Int, arguments: Bundle?): Boolean {
+            if (id == View.NO_ID) return performAccessibilityAction(action, arguments)
+            if (id !in 0 until visibleCount) return false
+            return when (action) {
+                AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS -> {
+                    if (a11yFocused != id) {
+                        val old = a11yFocused
+                        a11yFocused = id
+                        showA11yFocus(id)
+                        sendRowEvent(old, AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUS_CLEARED)
+                        sendRowEvent(id, AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUSED)
+                    }
+                    true
+                }
+                AccessibilityNodeInfo.ACTION_CLEAR_ACCESSIBILITY_FOCUS -> {
+                    if (a11yFocused == id) {
+                        a11yFocused = -1
+                        if (!touching) { targetStrength = 0f; invalidate() }
+                        sendRowEvent(id, AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUS_CLEARED)
+                    }
+                    true
+                }
+                AccessibilityNodeInfo.ACTION_CLICK -> {
+                    sendRowEvent(id, AccessibilityEvent.TYPE_VIEW_CLICKED)
+                    listener?.onItemClick(id, rowRect(id))
+                    true
+                }
+                AccessibilityNodeInfo.ACTION_LONG_CLICK -> {
+                    listener?.onItemLongPress(id)
+                    true
+                }
+                else -> false
+            }
+        }
+    }
+
+    override fun getAccessibilityNodeProvider(): AccessibilityNodeProvider = nodeProvider
 
     private companion object {
         /** How much a row's slot grows relative to its text (slightly less keeps the list compact). */

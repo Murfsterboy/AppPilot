@@ -6,6 +6,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.Rect
@@ -25,6 +26,8 @@ import android.view.View
 import android.view.WindowInsets
 import android.view.WindowInsetsController
 import android.view.WindowManager
+import android.view.accessibility.AccessibilityNodeInfo
+import android.view.animation.DecelerateInterpolator
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextClock
@@ -49,10 +52,26 @@ class MainActivity : Activity() {
     private var apps: List<AppEntry> = emptyList()
     private var insetTop = 0
     private var insetBottom = 0
+    private var arrangement = ""
+
+    /** Set when the ranking should be recomputed on the next visit to the home screen. */
+    private var rankDirty = true
+    private var hadUsageAccess = false
+    private var returning = false
+
+    private val prefsListener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ -> rankDirty = true }
 
     private val packageReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             repo.invalidateIcons()
+            reload()
+        }
+    }
+
+    /** Re-rank while the screen is off, so the new order is ready (and never changes in front of you). */
+    private val screenOffReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            rankDirty = true
             reload()
         }
     }
@@ -64,21 +83,37 @@ class MainActivity : Activity() {
         setupWindow()
         buildUi()
 
-        val filter = IntentFilter().apply {
+        val pkgFilter = IntentFilter().apply {
             addAction(Intent.ACTION_PACKAGE_ADDED)
             addAction(Intent.ACTION_PACKAGE_REMOVED)
             addAction(Intent.ACTION_PACKAGE_CHANGED)
             addDataScheme("package")
         }
-        if (Build.VERSION.SDK_INT >= 33) registerReceiver(packageReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
-        else registerReceiver(packageReceiver, filter)
+        register(packageReceiver, pkgFilter)
+        register(screenOffReceiver, IntentFilter(Intent.ACTION_SCREEN_OFF))
+        prefs.registerListener(prefsListener)
+    }
+
+    private fun register(receiver: BroadcastReceiver, filter: IntentFilter) {
+        if (Build.VERSION.SDK_INT >= 33) registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        else registerReceiver(receiver, filter)
+    }
+
+    override fun onRestart() {
+        super.onRestart()
+        returning = true
     }
 
     override fun onResume() {
         super.onResume()
         applySettings()
         updateBanners()
-        reload()
+        val usage = repo.hasUsageAccess()
+        if (usage != hadUsageAccess) rankDirty = true
+        hadUsageAccess = usage
+        if (rankDirty || !prefs.steadyOrder || apps.isEmpty()) reload()
+        if (returning && prefs.animateReturn) animateIn()
+        returning = false
     }
 
     override fun onPause() {
@@ -88,6 +123,8 @@ class MainActivity : Activity() {
 
     override fun onDestroy() {
         runCatching { unregisterReceiver(packageReceiver) }
+        runCatching { unregisterReceiver(screenOffReceiver) }
+        prefs.unregisterListener(prefsListener)
         repo.shutdown()
         super.onDestroy()
     }
@@ -142,10 +179,10 @@ class MainActivity : Activity() {
             addView(usageBanner, bannerParams())
         }
         hint = TextView(this).apply {
-            text = "Swipe up · all apps\nHold · settings"
             textSize = 12f
             alpha = 0.55f
             setLineSpacing(0f, 1.25f)
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
         }
 
         leftPanel = FrameLayout(this).apply {
@@ -156,6 +193,7 @@ class MainActivity : Activity() {
                 Gravity.BOTTOM or Gravity.START))
         }
         setupLeftGestures()
+        setupLeftAccessibility()
 
         listView = MagnifyListView(this).apply {
             listener = object : MagnifyListView.Listener {
@@ -213,32 +251,100 @@ class MainActivity : Activity() {
                 val start = e1 ?: return false
                 val dx = e2.x - start.x
                 val dy = e2.y - start.y
-                if (abs(dy) < abs(dx) || abs(dy) < dp(40f)) return false
-                if (dy < 0) openAllApps() else expandNotifications()
-                return true
-            }
-
-            override fun onSingleTapUp(e: MotionEvent): Boolean {
-                when {
-                    clock.hit(e) -> AppActions.safeStart(this@MainActivity, Intent(AlarmClock.ACTION_SHOW_ALARMS))
-                    date.hit(e) -> AppActions.safeStart(this@MainActivity, Intent(Intent.ACTION_VIEW,
-                        CalendarContract.CONTENT_URI.buildUpon().appendPath("time").build()))
+                if (abs(dy) >= abs(dx)) {
+                    if (abs(dy) < dp(40f)) return false
+                    if (dy < 0) openAllApps() else expandNotifications()
+                } else {
+                    if (abs(dx) < dp(60f)) return false
+                    runShortcut(if (dx > 0) prefs.shortcutSwipeRight else prefs.shortcutSwipeLeft)
                 }
                 return true
             }
 
+            // Confirmed (not part of a double-tap), so a double-tap shortcut doesn't also open alarms.
+            override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
+                when {
+                    clock.hit(e) -> openAlarms()
+                    date.hit(e) -> openCalendar()
+                }
+                return true
+            }
+
+            override fun onDoubleTap(e: MotionEvent): Boolean = runShortcut(prefs.shortcutDoubleTap)
+
             override fun onLongPress(e: MotionEvent) {
                 leftPanel.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-                startActivity(Intent(this@MainActivity, SettingsActivity::class.java))
+                openSettings()
             }
         })
         leftPanel.setOnTouchListener { _, e -> detector.onTouchEvent(e) }
+    }
+
+    /** Screen-reader users can't do the swipes, so expose them as actions on the clock side. */
+    private fun setupLeftAccessibility() {
+        val actions = listOf(
+            R_ALL_APPS to "All apps",
+            R_NOTIFICATIONS to "Notifications",
+            R_SETTINGS to "AppPilot settings",
+            R_ALARMS to "Alarms",
+            R_CALENDAR to "Calendar"
+        )
+        leftPanel.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
+        leftPanel.isFocusable = true
+        clock.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        date.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        leftPanel.accessibilityDelegate = object : View.AccessibilityDelegate() {
+            override fun onInitializeAccessibilityNodeInfo(host: View, info: AccessibilityNodeInfo) {
+                super.onInitializeAccessibilityNodeInfo(host, info)
+                info.contentDescription = "Home screen. ${clock.text}, ${date.text}. " +
+                    "Use actions for all apps and settings."
+                for ((id, label) in actions) info.addAction(AccessibilityNodeInfo.AccessibilityAction(id, label))
+            }
+
+            override fun performAccessibilityAction(host: View, action: Int, args: Bundle?): Boolean {
+                when (action) {
+                    R_ALL_APPS -> openAllApps()
+                    R_NOTIFICATIONS -> expandNotifications()
+                    R_SETTINGS -> openSettings()
+                    R_ALARMS -> openAlarms()
+                    R_CALENDAR -> openCalendar()
+                    else -> return super.performAccessibilityAction(host, action, args)
+                }
+                return true
+            }
+        }
+    }
+
+    private fun runShortcut(value: String): Boolean {
+        val handled = Shortcuts.run(this, value, prefs) { special ->
+            when (special) {
+                Shortcuts.ALL_APPS -> openAllApps()
+                Shortcuts.NOTIFICATIONS -> expandNotifications()
+                Shortcuts.SETTINGS -> openSettings()
+            }
+        }
+        if (handled) leftPanel.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+        return handled
     }
 
     private fun View.hit(e: MotionEvent): Boolean {
         if (visibility != View.VISIBLE) return false
         val r = Rect()
         return getGlobalVisibleRect(r) && r.contains(e.rawX.toInt(), e.rawY.toInt())
+    }
+
+    private fun animateIn() {
+        val dir = if (prefs.listOnLeft) -1 else 1
+        listView.animate().cancel()
+        listView.alpha = 0f
+        listView.translationX = dir * dp(28f)
+        listView.animate().alpha(1f).translationX(0f).setDuration(280)
+            .setInterpolator(DecelerateInterpolator(2.2f)).start()
+        leftContent.animate().cancel()
+        leftContent.alpha = 0f
+        leftContent.translationY = dp(12f)
+        leftContent.animate().alpha(1f).translationY(0f).setDuration(320).setStartDelay(40)
+            .setInterpolator(DecelerateInterpolator(2f)).start()
     }
 
     // ------------------------------------------------------------------ settings & data
@@ -263,6 +369,7 @@ class MainActivity : Activity() {
         clock.visibility = if (prefs.showClock) View.VISIBLE else View.GONE
         date.visibility = if (prefs.showDate) View.VISIBLE else View.GONE
         hint.visibility = if (prefs.showHint) View.VISIBLE else View.GONE
+        hint.text = buildHint()
         for (b in listOf(homeBanner, usageBanner)) {
             b.setTextColor(lt)
             b.background = GradientDrawable().apply {
@@ -284,15 +391,20 @@ class MainActivity : Activity() {
             verticalBias = prefs.verticalBias
         }
 
-        // Arrange: [left panel | list] or [list | left panel] for left-handed mode.
-        val p = prefs.panelPercent.coerceIn(25, 80).toFloat()
-        root.removeAllViews()
-        val leftLp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 100f - p)
-        val listLp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, p)
-        if (prefs.listOnLeft) {
-            root.addView(listView, listLp); root.addView(leftPanel, leftLp)
-        } else {
-            root.addView(leftPanel, leftLp); root.addView(listView, listLp)
+        // Arrange [clock side | list], or [list | clock side] in left-handed mode.
+        // Only rebuilt when it changes, to avoid a relayout every time you come home.
+        val p = prefs.panelPercent.coerceIn(25, 80)
+        val key = "${prefs.listOnLeft}/$p"
+        if (key != arrangement) {
+            arrangement = key
+            root.removeAllViews()
+            val leftLp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 100f - p)
+            val listLp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, p.toFloat())
+            if (prefs.listOnLeft) {
+                root.addView(listView, listLp); root.addView(leftPanel, leftLp)
+            } else {
+                root.addView(leftPanel, leftLp); root.addView(listView, listLp)
+            }
         }
         applyPadding()
         root.requestApplyInsets()
@@ -300,6 +412,15 @@ class MainActivity : Activity() {
         // Status/nav bar icons: dark icons on light backgrounds.
         val light = Colors.isLight(Colors.blend(prefs.leftBg, prefs.rightBg, 0.5f))
         setLightBars(light)
+    }
+
+    private fun buildHint(): String {
+        val lines = mutableListOf("Swipe up · all apps")
+        Shortcuts.hint(this, prefs.shortcutSwipeRight)?.let { lines += "Swipe right · $it" }
+        Shortcuts.hint(this, prefs.shortcutSwipeLeft)?.let { lines += "Swipe left · $it" }
+        Shortcuts.hint(this, prefs.shortcutDoubleTap)?.let { lines += "Double-tap · $it" }
+        lines += "Hold · settings"
+        return lines.joinToString("\n")
     }
 
     private fun setLightBars(light: Boolean) {
@@ -319,8 +440,12 @@ class MainActivity : Activity() {
     }
 
     private fun reload() {
+        rankDirty = false
         repo.loadRanked(prefs.appCount) { ranked ->
-            if (listView.isTouching) return@loadRanked // never reshuffle under the finger
+            if (listView.isTouching) { // never reshuffle under the finger; try again next time
+                rankDirty = true
+                return@loadRanked
+            }
             apps = ranked
             listView.setItems(ranked.map { MagnifyListView.Item(it.label, it.icon) })
         }
@@ -356,9 +481,14 @@ class MainActivity : Activity() {
         AppActions.safeStart(this, Intent(Settings.ACTION_HOME_SETTINGS))
     }
 
-    private fun openAllApps() {
-        startActivity(Intent(this, AllAppsActivity::class.java))
-    }
+    private fun openAllApps() = startActivity(Intent(this, AllAppsActivity::class.java))
+
+    private fun openSettings() = startActivity(Intent(this, SettingsActivity::class.java))
+
+    private fun openAlarms() = AppActions.safeStart(this, Intent(AlarmClock.ACTION_SHOW_ALARMS))
+
+    private fun openCalendar() = AppActions.safeStart(this, Intent(Intent.ACTION_VIEW,
+        CalendarContract.CONTENT_URI.buildUpon().appendPath("time").build()))
 
     private fun expandNotifications() {
         try {
@@ -366,5 +496,13 @@ class MainActivity : Activity() {
             val service = getSystemService("statusbar")
             Class.forName("android.app.StatusBarManager").getMethod("expandNotificationsPanel").invoke(service)
         } catch (_: Throwable) { }
+    }
+
+    private companion object {
+        val R_ALL_APPS = R.id.action_all_apps
+        val R_NOTIFICATIONS = R.id.action_notifications
+        val R_SETTINGS = R.id.action_settings
+        val R_ALARMS = R.id.action_alarms
+        val R_CALENDAR = R.id.action_calendar
     }
 }

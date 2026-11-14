@@ -1,6 +1,9 @@
 package com.apppilot.launcher
 
 import android.content.Context
+import android.content.SharedPreferences
+import org.json.JSONArray
+import org.json.JSONObject
 import kotlin.math.pow
 import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
@@ -44,12 +47,22 @@ class Prefs(context: Context) {
     /** 0 = number of launches, 1 = screen time */
     var rankBy by IntPref("rank_by", 0)
     var rankDays by IntPref("rank_days", 14)
+    /** Only re-rank when the screen turns off, so the list doesn't shuffle while you use the phone. */
+    var steadyOrder by BoolPref("steady_order", true)
 
     // ---- Home / drawer ----
     var showClock by BoolPref("show_clock", true)
     var showDate by BoolPref("show_date", true)
     var showHint by BoolPref("show_hint", true)
     var autoKeyboard by BoolPref("auto_keyboard", true)
+    var animateReturn by BoolPref("animate_return", true)
+    var searchContacts by BoolPref("search_contacts", true)
+    var askedContacts by BoolPref("asked_contacts", false)
+
+    // ---- Gesture shortcuts on the clock side (see Shortcuts) ----
+    var shortcutDoubleTap by StringPref("shortcut_double", "")
+    var shortcutSwipeRight by StringPref("shortcut_right", Shortcuts.DIALER)
+    var shortcutSwipeLeft by StringPref("shortcut_left", Shortcuts.CONTACTS)
 
     // ---- Pinned / hidden (keys are ComponentName.flattenToShortString()) ----
     var pinned: List<String>
@@ -92,6 +105,68 @@ class Prefs(context: Context) {
         rightBg = p.rightBg; listText = p.listText; highlight = p.highlight
     }
 
+    fun registerListener(l: SharedPreferences.OnSharedPreferenceChangeListener) =
+        sp.registerOnSharedPreferenceChangeListener(l)
+
+    fun unregisterListener(l: SharedPreferences.OnSharedPreferenceChangeListener) =
+        sp.unregisterOnSharedPreferenceChangeListener(l)
+
+    // ---- Backup / restore ----
+    fun exportJson(): String {
+        val root = JSONObject()
+        root.put("app", "AppPilot")
+        root.put("version", 1)
+        root.put("settings", toJson(sp.all))
+        root.put("history", toJson(history.all))
+        return root.toString(2)
+    }
+
+    /** Returns false if the text isn't an AppPilot backup. */
+    fun importJson(text: String): Boolean {
+        val root = runCatching { JSONObject(text) }.getOrNull() ?: return false
+        if (root.optString("app") != "AppPilot") return false
+        root.optJSONObject("settings")?.let { fromJson(it, sp) }
+        root.optJSONObject("history")?.let { fromJson(it, history) }
+        return true
+    }
+
+    private fun toJson(map: Map<String, *>): JSONObject {
+        val out = JSONObject()
+        for ((k, v) in map) {
+            val entry = JSONObject()
+            when (v) {
+                is Int -> entry.put("t", "i").put("v", v)
+                is Long -> entry.put("t", "l").put("v", v)
+                is Float -> entry.put("t", "f").put("v", v.toDouble())
+                is Boolean -> entry.put("t", "b").put("v", v)
+                is String -> entry.put("t", "s").put("v", v)
+                is Set<*> -> entry.put("t", "set").put("v", JSONArray(v.map { it.toString() }))
+                else -> continue
+            }
+            out.put(k, entry)
+        }
+        return out
+    }
+
+    private fun fromJson(obj: JSONObject, target: SharedPreferences) {
+        val e = target.edit().clear()
+        for (k in obj.keys()) {
+            val entry = obj.optJSONObject(k) ?: continue
+            when (entry.optString("t")) {
+                "i" -> e.putInt(k, entry.optInt("v"))
+                "l" -> e.putLong(k, entry.optLong("v"))
+                "f" -> e.putFloat(k, entry.optDouble("v").toFloat())
+                "b" -> e.putBoolean(k, entry.optBoolean("v"))
+                "s" -> e.putString(k, entry.optString("v"))
+                "set" -> {
+                    val arr = entry.optJSONArray("v") ?: JSONArray()
+                    e.putStringSet(k, (0 until arr.length()).map { arr.optString(it) }.toSet())
+                }
+            }
+        }
+        e.apply()
+    }
+
     // ---- Internal launch history (used when Usage Access isn't granted) ----
     fun recordLaunch(pkg: String, now: Long = System.currentTimeMillis()) {
         val current = decayed(history.getString(pkg, null), now)
@@ -128,6 +203,12 @@ class Prefs(context: Context) {
         override fun getValue(thisRef: Any?, property: KProperty<*>) = sp.getBoolean(key, def)
         override fun setValue(thisRef: Any?, property: KProperty<*>, value: Boolean) =
             sp.edit().putBoolean(key, value).apply()
+    }
+
+    private inner class StringPref(val key: String, val def: String) : ReadWriteProperty<Any?, String> {
+        override fun getValue(thisRef: Any?, property: KProperty<*>) = sp.getString(key, def) ?: def
+        override fun setValue(thisRef: Any?, property: KProperty<*>, value: String) =
+            sp.edit().putString(key, value).apply()
     }
 
     companion object {

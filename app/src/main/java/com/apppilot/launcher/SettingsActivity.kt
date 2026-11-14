@@ -125,6 +125,8 @@ class SettingsActivity : Activity() {
 
         header("Ranking")
         choice("Rank apps by", listOf("Times opened", "Screen time"), prefs.rankBy) { prefs.rankBy = it }
+        switch("Keep order steady", "Only re-rank while the screen is off, so apps never move as you reach for them",
+            prefs.steadyOrder) { prefs.steadyOrder = it }
         val days = listOf(1, 3, 7, 14, 30)
         choice("Look back over", days.map { if (it == 1) "Last 24 hours" else "Last $it days" },
             days.indexOf(prefs.rankDays).coerceAtLeast(0)) { prefs.rankDays = days[it] }
@@ -140,6 +142,11 @@ class SettingsActivity : Activity() {
         }
         action("Unhide all apps", "${prefs.hidden.size} hidden") { prefs.hidden = emptySet(); rebuild() }
 
+        header("Gesture shortcuts (clock side)")
+        shortcut("Swipe right", prefs.shortcutSwipeRight) { prefs.shortcutSwipeRight = it }
+        shortcut("Swipe left", prefs.shortcutSwipeLeft) { prefs.shortcutSwipeLeft = it }
+        shortcut("Double-tap", prefs.shortcutDoubleTap) { prefs.shortcutDoubleTap = it }
+
         header("Home screen")
         switch("Show clock", "Tap the clock to open alarms", prefs.showClock) { prefs.showClock = it }
         switch("Show date", "Tap the date to open your calendar", prefs.showDate) { prefs.showDate = it }
@@ -147,12 +154,83 @@ class SettingsActivity : Activity() {
         switch("Open keyboard in all-apps", "Start typing to search straight away", prefs.autoKeyboard) {
             prefs.autoKeyboard = it
         }
-        note("Gestures on the left side: swipe up for all apps, swipe down for notifications, hold for settings.")
+        val contactsOn = checkSelfPermission(android.Manifest.permission.READ_CONTACTS) ==
+            android.content.pm.PackageManager.PERMISSION_GRANTED
+        switch("Search contacts in all-apps",
+            if (contactsOn) "Find people as you type, with call and message buttons"
+            else "Find people as you type (asks for contacts access the first time)",
+            prefs.searchContacts) { prefs.searchContacts = it }
+        switch("Animate on return", "The list fades and slides in when you come back home", prefs.animateReturn) {
+            prefs.animateReturn = it
+        }
+        note("Clock side: swipe up for all apps, swipe down for notifications, hold for settings.")
+
+        header("Backup")
+        action("Back up settings", "Save colours, pins, hidden apps and shortcuts to a file") {
+            val intent = Intent(Intent.ACTION_CREATE_DOCUMENT)
+                .addCategory(Intent.CATEGORY_OPENABLE)
+                .setType("application/json")
+                .putExtra(Intent.EXTRA_TITLE, "apppilot-backup.json")
+            startForResult(intent, REQ_BACKUP)
+        }
+        action("Restore settings", "Load a backup file (replaces your current settings)") {
+            val intent = Intent(Intent.ACTION_OPEN_DOCUMENT)
+                .addCategory(Intent.CATEGORY_OPENABLE)
+                .setType("*/*")
+            startForResult(intent, REQ_RESTORE)
+        }
 
         scroll.post { scroll.scrollTo(0, y) }
     }
 
+    private fun startForResult(intent: Intent, code: Int) {
+        try {
+            @Suppress("DEPRECATION")
+            startActivityForResult(intent, code)
+        } catch (e: Exception) {
+            Toast.makeText(this, "No file picker available", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        val uri = data?.data
+        if (resultCode != RESULT_OK || uri == null) return
+        when (requestCode) {
+            REQ_BACKUP -> {
+                val ok = runCatching {
+                    contentResolver.openOutputStream(uri, "wt")!!.use { it.write(prefs.exportJson().toByteArray()) }
+                }.isSuccess
+                Toast.makeText(this, if (ok) "Settings backed up" else "Couldn't save the backup", Toast.LENGTH_SHORT).show()
+            }
+            REQ_RESTORE -> {
+                val text = runCatching {
+                    contentResolver.openInputStream(uri)!!.use { it.readBytes().toString(Charsets.UTF_8) }
+                }.getOrNull()
+                val ok = text != null && prefs.importJson(text)
+                Toast.makeText(this, if (ok) "Settings restored" else "That isn't an AppPilot backup",
+                    Toast.LENGTH_SHORT).show()
+                if (ok) rebuild()
+            }
+        }
+    }
+
     // ------------------------------------------------------------------ row builders
+
+    private fun shortcut(title: String, value: String, set: (String) -> Unit) {
+        row(title, Shortcuts.label(this, value), null) {
+            repo.loadAll { apps ->
+                val labels = Shortcuts.BUILT_IN.map { it.second } + apps.map { it.label }
+                val values = Shortcuts.BUILT_IN.map { it.first } + apps.map { it.key }
+                AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
+                    .setTitle(title)
+                    .setSingleChoiceItems(labels.toTypedArray(), values.indexOf(value)) { d, which ->
+                        set(values[which]); d.dismiss(); rebuild()
+                    }
+                    .show()
+            }
+        }
+    }
 
     private fun header(title: String) {
         container.addView(TextView(this).apply {
@@ -369,6 +447,8 @@ class SettingsActivity : Activity() {
     }
 
     private companion object {
+        const val REQ_BACKUP = 31
+        const val REQ_RESTORE = 32
         val SAMPLE = listOf(
             "WhatsApp", "Chrome", "YouTube", "Messages", "Camera", "Spotify", "Gmail", "Maps",
             "Photos", "Phone", "Instagram", "Calendar", "Clock", "Settings", "Calculator",
