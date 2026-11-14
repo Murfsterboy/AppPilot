@@ -55,7 +55,7 @@ EOF
 # Prints crash and WebView log lines, for diagnosing the app disappearing.
 show_logs() {
   echo "   --- crash log ---"; adb logcat -d -b crash | tail -40
-  echo "   --- app/WebView log ---"; adb logcat -d | grep -iE "benchtrainer|chromium|cr_|webview|render.*gone|died" | tail -60
+  echo "   --- app/WebView log ---"; adb logcat -d | grep -iE "benchtrainer|chromium|cr_|webview|render.*gone|died|ActivityTaskManager|ActivityManager|lowmemory|lmkd|FATAL|AndroidRuntime" | tail -80
 }
 check_crash() {
   if adb logcat -d -b crash | grep -q "$PKG"; then
@@ -98,7 +98,7 @@ if wait_text "Learn your test equipment" 30 && wait_text "In progress" 2; then e
   # The home screen does not show per-module status, so open the level page to check it.
   show_screen
   tap_text "Fluke 179" || { echo "   could not tap Fluke 179"; show_screen; show_logs; }
-  wait_text "Choose your level" 15 || echo "   equipment page not seen"
+  wait_text "Choose your level" 15 || { echo "   equipment page not seen"; show_logs; }
   show_screen
   tap_text "Beginner" || echo "   could not tap Beginner"
   if wait_text "In progress" 15; then echo "progress kept"; else show_screen; fail "progress was lost after restart"; fi
