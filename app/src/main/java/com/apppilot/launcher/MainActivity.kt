@@ -1,0 +1,370 @@
+package com.apppilot.launcher
+
+import android.app.Activity
+import android.app.role.RoleManager
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.content.pm.PackageManager
+import android.graphics.Color
+import android.graphics.Rect
+import android.graphics.Typeface
+import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.GradientDrawable
+import android.os.Build
+import android.os.Bundle
+import android.provider.AlarmClock
+import android.provider.CalendarContract
+import android.provider.Settings
+import android.view.GestureDetector
+import android.view.Gravity
+import android.view.HapticFeedbackConstants
+import android.view.MotionEvent
+import android.view.View
+import android.view.WindowInsets
+import android.view.WindowInsetsController
+import android.view.WindowManager
+import android.widget.FrameLayout
+import android.widget.LinearLayout
+import android.widget.TextClock
+import android.widget.TextView
+import kotlin.math.abs
+
+class MainActivity : Activity() {
+
+    private lateinit var prefs: Prefs
+    private lateinit var repo: AppRepository
+
+    private lateinit var root: LinearLayout
+    private lateinit var leftPanel: FrameLayout
+    private lateinit var leftContent: LinearLayout
+    private lateinit var clock: TextClock
+    private lateinit var date: TextClock
+    private lateinit var homeBanner: TextView
+    private lateinit var usageBanner: TextView
+    private lateinit var hint: TextView
+    private lateinit var listView: MagnifyListView
+
+    private var apps: List<AppEntry> = emptyList()
+    private var insetTop = 0
+    private var insetBottom = 0
+
+    private val packageReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            repo.invalidateIcons()
+            reload()
+        }
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        prefs = Prefs(this)
+        repo = AppRepository(this, prefs)
+        setupWindow()
+        buildUi()
+
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_PACKAGE_ADDED)
+            addAction(Intent.ACTION_PACKAGE_REMOVED)
+            addAction(Intent.ACTION_PACKAGE_CHANGED)
+            addDataScheme("package")
+        }
+        if (Build.VERSION.SDK_INT >= 33) registerReceiver(packageReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        else registerReceiver(packageReceiver, filter)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        applySettings()
+        updateBanners()
+        reload()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        listView.reset()
+    }
+
+    override fun onDestroy() {
+        runCatching { unregisterReceiver(packageReceiver) }
+        repo.shutdown()
+        super.onDestroy()
+    }
+
+    @Deprecated("Home screen ignores back")
+    override fun onBackPressed() {
+        // We're the home screen: nothing to go back to.
+    }
+
+    // ------------------------------------------------------------------ setup
+
+    private fun setupWindow() {
+        if (Build.VERSION.SDK_INT >= 30) {
+            window.setDecorFitsSystemWindows(false)
+        } else {
+            @Suppress("DEPRECATION")
+            window.decorView.systemUiVisibility = (View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION)
+        }
+        window.statusBarColor = Color.TRANSPARENT
+        window.navigationBarColor = Color.TRANSPARENT
+        if (Build.VERSION.SDK_INT >= 29) window.isNavigationBarContrastEnforced = false
+    }
+
+    private fun buildUi() {
+        root = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+
+        clock = TextClock(this).apply {
+            format24Hour = "HH:mm"
+            format12Hour = "h:mm"
+            textSize = 58f
+            typeface = Typeface.create("sans-serif-light", Typeface.NORMAL)
+            includeFontPadding = false
+        }
+        date = TextClock(this).apply {
+            format24Hour = "EEEE d MMMM"
+            format12Hour = "EEEE d MMMM"
+            textSize = 16f
+            setPadding(0, dpi(6), 0, 0)
+        }
+        homeBanner = banner("Make AppPilot your home screen  ›") { requestHomeRole() }
+        usageBanner = banner("Allow usage access so your most-used apps rank accurately  ›") {
+            AppActions.safeStart(this, Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
+        }
+
+        leftContent = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(clock)
+            addView(date)
+            addView(homeBanner, bannerParams())
+            addView(usageBanner, bannerParams())
+        }
+        hint = TextView(this).apply {
+            text = "Swipe up · all apps\nHold · settings"
+            textSize = 12f
+            alpha = 0.55f
+            setLineSpacing(0f, 1.25f)
+        }
+
+        leftPanel = FrameLayout(this).apply {
+            addView(leftContent, FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.TOP))
+            addView(hint, FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT,
+                Gravity.BOTTOM or Gravity.START))
+        }
+        setupLeftGestures()
+
+        listView = MagnifyListView(this).apply {
+            listener = object : MagnifyListView.Listener {
+                override fun onItemClick(index: Int, bounds: Rect) {
+                    apps.getOrNull(index)?.let { AppActions.launch(this@MainActivity, it, prefs, listView, bounds) }
+                }
+
+                override fun onItemLongPress(index: Int) {
+                    apps.getOrNull(index)?.let { AppActions.showMenu(this@MainActivity, it, prefs) { reload() } }
+                }
+            }
+        }
+
+        root.setOnApplyWindowInsetsListener { _, insets ->
+            if (Build.VERSION.SDK_INT >= 30) {
+                val bars = insets.getInsets(WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout())
+                insetTop = bars.top; insetBottom = bars.bottom
+            } else {
+                @Suppress("DEPRECATION")
+                insetTop = insets.systemWindowInsetTop
+                @Suppress("DEPRECATION")
+                insetBottom = insets.systemWindowInsetBottom
+            }
+            applyPadding()
+            insets
+        }
+
+        setContentView(root)
+    }
+
+    private fun banner(text: String, onClick: () -> Unit) = TextView(this).apply {
+        this.text = text
+        textSize = 13f
+        setPadding(dpi(14), dpi(10), dpi(14), dpi(10))
+        setOnClickListener { onClick() }
+    }
+
+    private fun bannerParams() = LinearLayout.LayoutParams(
+        LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
+    ).apply { topMargin = dpi(20); marginEnd = dpi(8) }
+
+    private fun applyPadding() {
+        leftPanel.setPadding(dpi(28), insetTop + dpi(56), dpi(16), insetBottom + dpi(28))
+        // Keep the list a little away from the screen edge so the back gesture doesn't grab it.
+        val inner = dpi(18); val outer = dpi(26)
+        if (prefs.listOnLeft) listView.setPadding(outer, insetTop + dpi(12), inner, insetBottom + dpi(12))
+        else listView.setPadding(inner, insetTop + dpi(12), outer, insetBottom + dpi(12))
+    }
+
+    private fun setupLeftGestures() {
+        val detector = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
+            override fun onDown(e: MotionEvent) = true
+
+            override fun onFling(e1: MotionEvent?, e2: MotionEvent, vx: Float, vy: Float): Boolean {
+                val start = e1 ?: return false
+                val dx = e2.x - start.x
+                val dy = e2.y - start.y
+                if (abs(dy) < abs(dx) || abs(dy) < dp(40f)) return false
+                if (dy < 0) openAllApps() else expandNotifications()
+                return true
+            }
+
+            override fun onSingleTapUp(e: MotionEvent): Boolean {
+                when {
+                    clock.hit(e) -> AppActions.safeStart(this@MainActivity, Intent(AlarmClock.ACTION_SHOW_ALARMS))
+                    date.hit(e) -> AppActions.safeStart(this@MainActivity, Intent(Intent.ACTION_VIEW,
+                        CalendarContract.CONTENT_URI.buildUpon().appendPath("time").build()))
+                }
+                return true
+            }
+
+            override fun onLongPress(e: MotionEvent) {
+                leftPanel.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                startActivity(Intent(this@MainActivity, SettingsActivity::class.java))
+            }
+        })
+        leftPanel.setOnTouchListener { _, e -> detector.onTouchEvent(e) }
+    }
+
+    private fun View.hit(e: MotionEvent): Boolean {
+        if (visibility != View.VISIBLE) return false
+        val r = Rect()
+        return getGlobalVisibleRect(r) && r.contains(e.rawX.toInt(), e.rawY.toInt())
+    }
+
+    // ------------------------------------------------------------------ settings & data
+
+    private fun applySettings() {
+        val wallpaper = prefs.showWallpaper
+        val leftColor = if (wallpaper) Colors.withAlpha(prefs.leftBg, prefs.leftOpacity / 100f) else prefs.leftBg
+        val rightColor = if (wallpaper) Colors.withAlpha(prefs.rightBg, prefs.rightOpacity / 100f) else prefs.rightBg
+        if (wallpaper) {
+            window.addFlags(WindowManager.LayoutParams.FLAG_SHOW_WALLPAPER)
+            window.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+        } else {
+            window.clearFlags(WindowManager.LayoutParams.FLAG_SHOW_WALLPAPER)
+            window.setBackgroundDrawable(ColorDrawable(prefs.leftBg))
+        }
+
+        leftPanel.setBackgroundColor(leftColor)
+        listView.setBackgroundColor(rightColor)
+
+        val lt = prefs.leftText
+        clock.setTextColor(lt); date.setTextColor(lt); hint.setTextColor(lt)
+        clock.visibility = if (prefs.showClock) View.VISIBLE else View.GONE
+        date.visibility = if (prefs.showDate) View.VISIBLE else View.GONE
+        hint.visibility = if (prefs.showHint) View.VISIBLE else View.GONE
+        for (b in listOf(homeBanner, usageBanner)) {
+            b.setTextColor(lt)
+            b.background = GradientDrawable().apply {
+                cornerRadius = dp(12f)
+                setColor(Colors.withAlpha(lt, 0.10f))
+            }
+        }
+
+        listView.apply {
+            textColor = prefs.listText
+            highlightColor = prefs.highlight
+            baseTextSizePx = sp(prefs.textSizeSp)
+            maxScale = prefs.magnification
+            spread = prefs.spread
+            showIcons = prefs.showIcons
+            mirrored = prefs.listOnLeft
+            pill = prefs.highlightPill
+            haptics = prefs.haptics
+            verticalBias = prefs.verticalBias
+        }
+
+        // Arrange: [left panel | list] or [list | left panel] for left-handed mode.
+        val p = prefs.panelPercent.coerceIn(25, 80).toFloat()
+        root.removeAllViews()
+        val leftLp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 100f - p)
+        val listLp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, p)
+        if (prefs.listOnLeft) {
+            root.addView(listView, listLp); root.addView(leftPanel, leftLp)
+        } else {
+            root.addView(leftPanel, leftLp); root.addView(listView, listLp)
+        }
+        applyPadding()
+        root.requestApplyInsets()
+
+        // Status/nav bar icons: dark icons on light backgrounds.
+        val light = Colors.isLight(Colors.blend(prefs.leftBg, prefs.rightBg, 0.5f))
+        setLightBars(light)
+    }
+
+    private fun setLightBars(light: Boolean) {
+        if (Build.VERSION.SDK_INT >= 30) {
+            val mask = WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS or
+                WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS
+            window.insetsController?.setSystemBarsAppearance(if (light) mask else 0, mask)
+        } else {
+            @Suppress("DEPRECATION")
+            var flags = window.decorView.systemUiVisibility
+            @Suppress("DEPRECATION")
+            val mask = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
+            flags = if (light) flags or mask else flags and mask.inv()
+            @Suppress("DEPRECATION")
+            window.decorView.systemUiVisibility = flags
+        }
+    }
+
+    private fun reload() {
+        repo.loadRanked(prefs.appCount) { ranked ->
+            if (listView.isTouching) return@loadRanked // never reshuffle under the finger
+            apps = ranked
+            listView.setItems(ranked.map { MagnifyListView.Item(it.label, it.icon) })
+        }
+    }
+
+    private fun updateBanners() {
+        homeBanner.visibility = if (isDefaultHome()) View.GONE else View.VISIBLE
+        usageBanner.visibility = if (repo.hasUsageAccess()) View.GONE else View.VISIBLE
+    }
+
+    private fun isDefaultHome(): Boolean {
+        val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
+        val info = if (Build.VERSION.SDK_INT >= 33) {
+            packageManager.resolveActivity(intent, PackageManager.ResolveInfoFlags.of(PackageManager.MATCH_DEFAULT_ONLY.toLong()))
+        } else {
+            @Suppress("DEPRECATION")
+            packageManager.resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY)
+        }
+        return info?.activityInfo?.packageName == packageName
+    }
+
+    private fun requestHomeRole() {
+        if (Build.VERSION.SDK_INT >= 29) {
+            val rm = getSystemService(RoleManager::class.java)
+            if (rm != null && rm.isRoleAvailable(RoleManager.ROLE_HOME) && !rm.isRoleHeld(RoleManager.ROLE_HOME)) {
+                try {
+                    @Suppress("DEPRECATION")
+                    startActivityForResult(rm.createRequestRoleIntent(RoleManager.ROLE_HOME), 7)
+                    return
+                } catch (_: Exception) { }
+            }
+        }
+        AppActions.safeStart(this, Intent(Settings.ACTION_HOME_SETTINGS))
+    }
+
+    private fun openAllApps() {
+        startActivity(Intent(this, AllAppsActivity::class.java))
+    }
+
+    private fun expandNotifications() {
+        try {
+            @Suppress("WrongConstant")
+            val service = getSystemService("statusbar")
+            Class.forName("android.app.StatusBarManager").getMethod("expandNotificationsPanel").invoke(service)
+        } catch (_: Throwable) { }
+    }
+}
