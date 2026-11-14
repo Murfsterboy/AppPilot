@@ -14,9 +14,22 @@
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
   /* ---------------- storage ---------------- */
+  /* In the Android app, window.BTNative saves to the phone's own storage immediately, so progress
+   * isn't lost if the app is closed straight after a quiz (WebView localStorage writes are delayed). */
+  const Native = window.BTNative || null;
   const LS = {
-    get(k, d) { try { const v = localStorage.getItem('bt.' + k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
-    set(k, v) { try { localStorage.setItem('bt.' + k, JSON.stringify(v)); } catch (e) { /* storage unavailable */ } }
+    get(k, d) {
+      try {
+        let v = Native ? Native.get('bt.' + k) : null;
+        if (v == null) v = localStorage.getItem('bt.' + k);
+        return v ? JSON.parse(v) : d;
+      } catch (e) { return d; }
+    },
+    set(k, v) {
+      const s = JSON.stringify(v);
+      try { if (Native) Native.set('bt.' + k, s); } catch (e) { /* bridge unavailable */ }
+      try { localStorage.setItem('bt.' + k, s); } catch (e) { /* storage unavailable */ }
+    }
   };
   const Photos = (() => {
     let dbp = null; const mem = {};

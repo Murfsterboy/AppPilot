@@ -8,6 +8,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.provider.MediaStore
+import android.webkit.JavascriptInterface
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
@@ -43,6 +44,8 @@ class MainActivity : Activity() {
             allowFileAccess = false
             mediaPlaybackRequiresUserGesture = true
         }
+
+        web.addJavascriptInterface(NativeStore(), "BTNative")
 
         web.webViewClient = object : WebViewClient() {
             override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
@@ -135,6 +138,23 @@ class MainActivity : Activity() {
         fileCallback?.onReceiveValue(null)
         web.destroy()
         super.onDestroy()
+    }
+
+    /**
+     * Key/value storage for progress and equipment, written to disk synchronously. WebView's own
+     * localStorage can lag a few seconds behind, so a quiz result could be lost if the app was
+     * swiped away immediately. Only the bundled app's own pages are ever loaded in this WebView.
+     */
+    inner class NativeStore {
+        private val prefs = getSharedPreferences("bench-trainer", MODE_PRIVATE)
+
+        @JavascriptInterface
+        fun get(key: String): String? = prefs.getString(key, null)
+
+        @JavascriptInterface
+        fun set(key: String, value: String) {
+            prefs.edit().putString(key, value).commit()
+        }
     }
 
     private fun notFound() =
