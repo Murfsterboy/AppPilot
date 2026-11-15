@@ -146,7 +146,8 @@ fi
 check_crash "feed scrolling"
 
 step "All apps: swipe up on the clock side, then search"
-adb shell input swipe 240 1900 240 800 150
+# Start below the notification feed (beside the gesture hints) so the swipe reaches the clock side.
+adb shell input swipe 240 2100 240 800 150
 sleep 2
 shot 05-all-apps
 adb shell input text "al"
@@ -158,7 +159,7 @@ adb shell input keyevent KEYCODE_BACK; sleep 1
 home
 
 step "Settings: long-press the clock side"
-adb shell input swipe 240 1500 240 1500 1200
+adb shell input swipe 240 2100 240 2100 1200
 sleep 2.5
 shot 07-settings
 for i in 1 2 3 4; do
