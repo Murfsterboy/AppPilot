@@ -23,10 +23,11 @@ check_crash() {
 }
 has() { dump; python3 "$UI" has "$OUT/ui.xml" "$1"; }
 # Scroll down until text is on screen (up to 12 swipes); returns 1 if never found.
+# Swipes stay in the top half of the screen so they still work while the keyboard is open.
 scroll_to() {
   for _ in $(seq 1 12); do
     if has "$1"; then return 0; fi
-    adb shell input swipe 540 1700 540 900 300; sleep 0.8
+    adb shell input swipe 540 1250 540 450 300; sleep 0.8
   done
   has "$1"
 }
@@ -39,7 +40,7 @@ tap() {
   fi
 }
 expect() { scroll_to "$1" || fail "Expected to see \"$1\" ($2)"; }
-top() { for _ in 1 2 3 4 5 6; do adb shell input swipe 540 700 540 1900 200; done; sleep 0.5; }
+top() { for _ in 1 2 3 4 5 6 7 8; do adb shell input swipe 540 450 540 1250 150; done; sleep 0.5; }
 home() { adb shell am start -n "$PKG/.MainActivity" -f 0x04000000 >/dev/null; sleep 2; top; }
 
 step "Install and launch"
