@@ -47,6 +47,7 @@ class MainActivity : Activity() {
     private lateinit var date: TextClock
     private lateinit var homeBanner: TextView
     private lateinit var usageBanner: TextView
+    private lateinit var notifBanner: TextView
     private lateinit var hint: TextView
     private lateinit var listView: MagnifyListView
     private lateinit var rightPanel: LinearLayout
@@ -180,12 +181,17 @@ class MainActivity : Activity() {
             AppActions.safeStart(this, Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
         }
 
+        notifBanner = banner("Allow notification access to see dots and recent notifications  ›") {
+            openNotificationAccess()
+        }
+
         leftContent = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             addView(clock)
             addView(date)
             addView(homeBanner, bannerParams())
             addView(usageBanner, bannerParams())
+            addView(notifBanner, bannerParams())
         }
         hint = TextView(this).apply {
             textSize = 12f
@@ -400,7 +406,7 @@ class MainActivity : Activity() {
         date.visibility = if (prefs.showDate) View.VISIBLE else View.GONE
         hint.visibility = if (prefs.showHint) View.VISIBLE else View.GONE
         hint.text = buildHint()
-        for (b in listOf(homeBanner, usageBanner)) {
+        for (b in listOf(homeBanner, usageBanner, notifBanner)) {
             b.setTextColor(lt)
             b.background = GradientDrawable().apply {
                 cornerRadius = dp(12f)
@@ -518,8 +524,10 @@ class MainActivity : Activity() {
         }
 
         val byPkg = visible.groupBy { it.packageName }
-        val counts = IntArray(apps.size) { byPkg[apps[it].packageName]?.size ?: 0 }
-        val latest = Array<CharSequence?>(apps.size) { byPkg[apps[it].packageName]?.firstOrNull()?.summary }
+        // Shortcuts don't get their app's dot: a WhatsApp chat shortcut would light up for every chat.
+        fun forRow(i: Int) = if (apps[i].isShortcut) null else byPkg[apps[i].packageName]
+        val counts = IntArray(apps.size) { forRow(it)?.size ?: 0 }
+        val latest = Array<CharSequence?>(apps.size) { forRow(it)?.firstOrNull()?.summary }
         listView.setBadges(counts, latest)
     }
 
@@ -542,6 +550,22 @@ class MainActivity : Activity() {
     private fun updateBanners() {
         homeBanner.visibility = if (isDefaultHome()) View.GONE else View.VISIBLE
         usageBanner.visibility = if (repo.hasUsageAccess()) View.GONE else View.VISIBLE
+        val wantsNotifications = prefs.notifDots || prefs.feedEnabled || prefs.notifPreview
+        notifBanner.visibility =
+            if (wantsNotifications && !NotificationStore.hasAccess(this)) View.VISIBLE else View.GONE
+    }
+
+    /** Opens the system switch, explaining first how to unlock it if Android has greyed it out. */
+    private fun openNotificationAccess() {
+        AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
+            .setTitle("Notification access")
+            .setMessage(NotificationStore.ACCESS_HELP)
+            .setPositiveButton("Open setting") { _, _ ->
+                AppActions.safeStart(this, NotificationStore.accessSettingsIntent(this))
+            }
+            .setNeutralButton("App info") { _, _ -> AppActions.openAppInfo(this, packageName) }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
     }
 
     private fun isDefaultHome(): Boolean {

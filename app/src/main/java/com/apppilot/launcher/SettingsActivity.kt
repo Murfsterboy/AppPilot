@@ -125,10 +125,30 @@ class SettingsActivity : Activity() {
 
         header("Notifications")
         val notifAccess = NotificationStore.hasAccess(this)
-        action("Notification access", if (notifAccess) "Allowed ✓ — AppPilot can show your notifications"
-        else "Not allowed — tap to let AppPilot show notification dots, previews and the feed") {
-            AppActions.safeStart(this, NotificationStore.accessSettingsIntent(this))
+        val connected = NotificationStore.isConnected
+        action("Notification access", when {
+            notifAccess && connected -> "Allowed ✓ — AppPilot can show your notifications"
+            notifAccess -> "Allowed, but Android hasn't connected AppPilot yet — tap to reconnect"
+            else -> "Not allowed — tap to let AppPilot show notification dots, previews and the feed"
+        }) {
+            if (notifAccess && !connected) {
+                NotificationStore.reconnect(this)
+                Toast.makeText(this, "Reconnecting… if the dots still don't appear, turn notification access off and on again",
+                    Toast.LENGTH_LONG).show()
+                window.decorView.postDelayed({ rebuild() }, 1500)
+            } else {
+                AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
+                    .setTitle("Notification access")
+                    .setMessage(NotificationStore.ACCESS_HELP)
+                    .setPositiveButton("Open setting") { _, _ ->
+                        AppActions.safeStart(this, NotificationStore.accessSettingsIntent(this))
+                    }
+                    .setNeutralButton("App info") { _, _ -> AppActions.openAppInfo(this, packageName) }
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .show()
+            }
         }
+        if (!notifAccess) note("Greyed out? App info → ⋮ → Allow restricted settings, then try again.")
         action("Choose which apps show notifications", notifAppsSummary()) { chooseNotificationApps() }
         note("This only controls what AppPilot shows. To stop an app notifying you at all, long-press it and choose System notification settings.")
         switch("Dots in the app list", "A dot next to apps with notifications", prefs.notifDots) {
@@ -167,6 +187,9 @@ class SettingsActivity : Activity() {
         choice("Look back over", days.map { if (it == 1) "Last 24 hours" else "Last $it days" },
             days.indexOf(prefs.rankDays).coerceAtLeast(0)) { prefs.rankDays = days[it] }
         note("Long-press any app (in the list or the all-apps screen) to pin it to the top, reorder pins, or hide it.")
+        note("Shortcuts: long-press an app in the list → \"Add a shortcut to the list…\" (e.g. a WhatsApp chat, " +
+            "Maps directions home). \"Add to home screen\" inside apps like Chrome or Contacts also adds to the list. " +
+            "Needs AppPilot to be your home screen.")
         action("Reset AppPilot's launch history", "Only affects ranking without usage access") {
             AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
                 .setMessage("Clear launch history?")

@@ -86,6 +86,13 @@ object NotificationStore {
 
     // ---- Permission ----
 
+    /** Android 13+ greys out the switch for apps installed from an APK until you unlock it. */
+    const val ACCESS_HELP =
+        "Turn on AppPilot in the next screen.\n\n" +
+        "If the switch is greyed out or says \"Restricted setting\": go back, tap App info, " +
+        "tap ⋮ (top right) → \"Allow restricted settings\", confirm, then try again. " +
+        "Android does this for apps installed from an APK rather than the Play Store."
+
     fun component(context: Context) = ComponentName(context, NotificationService::class.java)
 
     fun hasAccess(context: Context): Boolean {
@@ -107,6 +114,19 @@ object NotificationStore {
         if (!isConnected && hasAccess(context)) {
             runCatching { NotificationListenerService.requestRebind(component(context)) }
         }
+    }
+
+    /** Forces a fresh connection by briefly disabling and re-enabling the listener component. */
+    fun reconnect(context: Context) {
+        val pm = context.packageManager
+        val cn = component(context)
+        runCatching {
+            pm.setComponentEnabledSetting(cn, android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+                android.content.pm.PackageManager.DONT_KILL_APP)
+            pm.setComponentEnabledSetting(cn, android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+                android.content.pm.PackageManager.DONT_KILL_APP)
+        }
+        runCatching { NotificationListenerService.requestRebind(cn) }
     }
 
     // ---- Conversion ----

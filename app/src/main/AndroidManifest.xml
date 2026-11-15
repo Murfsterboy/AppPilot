@@ -63,6 +63,18 @@
             </intent-filter>
         </service>
 
+        <!-- Apps' "Add to home screen" / "Add shortcut" (a chat, contact, web page...) adds it to the list. -->
+        <activity
+            android:name=".PinShortcutActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:theme="@style/Theme.AppPilot.Transparent">
+            <intent-filter>
+                <action android:name="android.content.pm.action.CONFIRM_PIN_SHORTCUT" />
+            </intent-filter>
+        </activity>
+
         <activity
             android:name=".SettingsActivity"
             android:exported="false"

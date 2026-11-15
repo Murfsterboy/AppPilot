@@ -23,7 +23,7 @@ Each build is signed with the same key, so new versions install over old ones.
 | App list | Drag up/down | Magnify and highlight apps, with a haptic tick per app |
 | App list | Lift finger | Open the highlighted app |
 | App list | Drag off sideways | Cancel without opening anything |
-| App list | Long-press | Pin to top, reorder pins, hide, app info, uninstall |
+| App list | Long-press | Pin to top, reorder pins, add a shortcut, hide, app info, uninstall |
 | Clock side | Swipe up | All apps (alphabetical; search finds apps and contacts) |
 | Clock side | Swipe down | Notification shade |
 | Clock side | Swipe right / left, double-tap | Your choice of shortcut (default: Phone / Contacts) |
@@ -42,11 +42,16 @@ Each build is signed with the same key, so new versions install over old ones.
 - **Ranking**: by times opened or screen time, over the last 24 hours, 3, 7, 14 or 30
   days. Pinned apps always come first; hidden apps are left out of the list.
   "Keep order steady" re-ranks only while the screen is off, so apps never move as you reach for them.
+- **Shortcuts in the list**: long-press an app → "Add a shortcut to the list…" to put one of its
+  shortcuts (a WhatsApp chat, Maps "directions home", a Chrome page...) at the top of the list.
+  "Add to home screen" inside apps (Chrome, Contacts, WhatsApp...) also adds to the list.
+  Long-press a shortcut to move or remove it. Needs AppPilot to be your home screen.
 - **Contacts**: typing in All apps also finds people, with call (opens the dial pad) and
   message buttons. Contacts access is asked for only when you first use it.
 - **Gesture shortcuts**: swipe right, swipe left and double-tap on the clock side can open
   the dial pad, contacts, camera, any app, all apps, notifications or settings.
-- **Notifications** (after you allow notification access):
+- **Notifications** (after you allow notification access; the home screen shows a prompt until you do.
+  If Android greys the switch out, open AppPilot's App info → ⋮ → "Allow restricted settings" first):
   - a dot, or a count, next to apps in the list that have notifications, before or after the name;
   - while you drag, the magnified app shows a preview of its latest notification;
   - a feed of recent notifications, under the clock or on the list side above the apps

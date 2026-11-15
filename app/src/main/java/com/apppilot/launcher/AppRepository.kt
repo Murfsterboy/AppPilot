@@ -17,9 +17,17 @@ import android.os.Looper
 import android.os.Process
 import java.util.concurrent.Executors
 
-class AppEntry(val label: String, val component: ComponentName, val icon: Bitmap?) {
+/** An app in the list, or (when [shortcutId] is set) one of an app's shortcuts. */
+class AppEntry(
+    val label: String,
+    val component: ComponentName,
+    val icon: Bitmap?,
+    val shortcutId: String? = null
+) {
     val packageName: String get() = component.packageName
-    val key: String = component.flattenToShortString()
+    val isShortcut: Boolean get() = shortcutId != null
+    val key: String = if (shortcutId != null) AppShortcuts.key(component.packageName, shortcutId)
+        else component.flattenToShortString()
 }
 
 /** Loads installed apps and ranks them by usage. All heavy work runs off the main thread. */
@@ -59,7 +67,8 @@ class AppRepository(private val context: Context, private val prefs: Prefs) {
         val hidden = prefs.hidden
         val pinnedKeys = prefs.pinned
         val byKey = all.associateBy { it.key }
-        val pinned = pinnedKeys.mapNotNull { byKey[it] }
+        val shortcuts = AppShortcuts.resolve(context, pinnedKeys.filter { AppShortcuts.isKey(it) }, iconSize)
+        val pinned = pinnedKeys.mapNotNull { byKey[it] ?: shortcuts[it] }
         val scores = usageScores()
         val fallback = if (scores.isEmpty()) emptyMap() else prefs.launchScores()
         val rest = all
