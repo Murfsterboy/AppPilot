@@ -146,6 +146,7 @@ class MainActivity : Activity() {
     override fun onPause() {
         super.onPause()
         listView.reset()
+        feed.collapse()
     }
 
     override fun onDestroy() {
@@ -226,6 +227,7 @@ class MainActivity : Activity() {
                 FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT,
                 Gravity.BOTTOM or Gravity.START))
         }
+        leftPanel.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> leftPanel.post { updateFeedHeight() } }
         setupLeftGestures()
         setupLeftAccessibility()
 
@@ -248,6 +250,7 @@ class MainActivity : Activity() {
 
         feed = NotificationFeedView(this).apply {
             visibility = View.GONE
+            addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> post { updateFeedHeight() } }
             listener = object : NotificationFeedView.Listener {
                 override fun onOpen(e: NotificationEntry) = NotificationStore.open(this@MainActivity, e, prefs)
                 override fun onMenu(e: NotificationEntry) = showNotificationMenu(e)
@@ -531,6 +534,23 @@ class MainActivity : Activity() {
                 ).apply { topMargin = dpi(28); marginEnd = dpi(8) })
             }
         }
+    }
+
+    /** Lets the feed's cards scroll in the space they have: down to the gesture hints, or part of the list side. */
+    private fun updateFeedHeight() {
+        if (!::feed.isInitialized) return
+        val parent = feed.parent ?: return
+        if (feed.visibility != View.VISIBLE || leftPanel.height == 0) return
+        val max = if (parent === rightPanel) {
+            (rightPanel.height * 0.45f).toInt()
+        } else {
+            val hintSpace = if (hint.visibility == View.VISIBLE) hint.height + dpi(20) else 0
+            val bottom = leftPanel.height - leftPanel.paddingBottom - hintSpace
+            // Ignore the slide-in animation's offset so the size doesn't jump while it plays.
+            val top = feed.listTopIn(leftPanel) - leftContent.translationY.toInt()
+            bottom - top - feed.footerHeight
+        }
+        feed.maxListHeight = max.coerceAtLeast(dpi(120))
     }
 
     private fun refreshNotifications() {

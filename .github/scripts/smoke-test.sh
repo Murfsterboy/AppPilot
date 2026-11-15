@@ -114,6 +114,37 @@ else
 fi
 check_crash "notification dots"
 
+step "Notification feed: '+N more' expands to a scrollable list"
+for n in 1 2 3 4 5 6 7; do
+  adb shell "cmd notification post -t 'Feed test $n' feed$n 'Scroll test message number $n'" >/dev/null
+done
+sleep 3
+home
+sleep 2
+adb shell uiautomator dump /sdcard/ui4.xml >/dev/null 2>&1
+adb pull /sdcard/ui4.xml "$OUT/feed-more.xml" >/dev/null 2>&1 || true
+MORE=$(grep -o 'text="+[0-9]* more  ›"[^>]*bounds="\[[0-9]*,[0-9]*\]\[[0-9]*,[0-9]*\]"' "$OUT/feed-more.xml" | head -1)
+echo "more link: $MORE"
+if [ -z "$MORE" ]; then
+  fail "Expected a '+N more' link in the feed"
+else
+  set -- $(echo "$MORE" | grep -o '[0-9]\+' | tail -4)
+  adb shell input tap $(( ($1 + $3) / 2 )) $(( ($2 + $4) / 2 ))
+  sleep 1.5
+  shot 05c-feed-expanded
+  adb shell input swipe 240 1500 240 900 400
+  sleep 1
+  shot 05d-feed-scrolled
+  adb shell uiautomator dump /sdcard/ui5.xml >/dev/null 2>&1
+  adb pull /sdcard/ui5.xml "$OUT/feed-expanded.xml" >/dev/null 2>&1 || true
+  grep -q 'text="Show less"' "$OUT/feed-expanded.xml" 2>/dev/null \
+    || fail "Tapping '+N more' didn't expand the feed"
+  grep -q 'android.widget.ScrollView' "$OUT/feed-expanded.xml" 2>/dev/null \
+    || fail "The expanded feed isn't scrollable"
+  resumed | grep -q "$PKG" || fail "Scrolling the feed left the home screen: $(resumed)"
+fi
+check_crash "feed scrolling"
+
 step "All apps: swipe up on the clock side, then search"
 adb shell input swipe 240 1900 240 800 150
 sleep 2
