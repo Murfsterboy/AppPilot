@@ -89,9 +89,12 @@ class RecordsActivity : BaseActivity() {
         val lc = card()
         heading("Director's loan account", lc, 16f)
         when {
-            loan > 0 -> body("The company owes you **${Money.pence(loan)}**. You can repay yourself tax-free — record it as \"Repaid to me (director loan)\".", lc)
+            loan > 0 -> {
+                valueRow("The company owes you", Money.pence(loan), lc, bold = true, valueColor = pal.good)
+                small("You can repay yourself tax-free. Record it as \"Repaid to me (director loan)\".", lc)
+            }
             loan < 0 -> {
-                body("You owe the company **${Money.pence(-loan)}**.", lc)
+                valueRow("You owe the company", Money.pence(-loan), lc, bold = true, valueColor = pal.warn)
                 callout("If this is still owed 9 months after the company's year end, the company pays a temporary s455 tax charge. Loans over £10,000 can also be a taxable benefit.", true, lc)
             }
             else -> body("Balanced: neither you nor the company owes the other anything.", lc)
