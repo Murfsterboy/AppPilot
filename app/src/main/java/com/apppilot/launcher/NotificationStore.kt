@@ -40,6 +40,9 @@ object NotificationStore {
 
     val isConnected: Boolean get() = service != null
 
+    /** How many notifications the phone has right now (before AppPilot's filters). */
+    val totalCount: Int get() = entries.size
+
     fun addListener(l: () -> Unit) { listeners += l }
     fun removeListener(l: () -> Unit) { listeners -= l }
 

@@ -127,7 +127,12 @@ class SettingsActivity : Activity() {
         val notifAccess = NotificationStore.hasAccess(this)
         val connected = NotificationStore.isConnected
         action("Notification access", when {
-            notifAccess && connected -> "Allowed ✓ — AppPilot can show your notifications"
+            notifAccess && connected -> {
+                val shown = NotificationStore.visible(prefs).size
+                val total = NotificationStore.totalCount
+                "Allowed ✓ — connected. Right now: $shown notification${if (shown == 1) "" else "s"} to show" +
+                    if (total > shown) " ($total on the phone; the rest are hidden by your choices below or ongoing)" else ""
+            }
             notifAccess -> "Allowed, but Android hasn't connected AppPilot yet — tap to reconnect"
             else -> "Not allowed — tap to let AppPilot show notification dots, previews and the feed"
         }) {

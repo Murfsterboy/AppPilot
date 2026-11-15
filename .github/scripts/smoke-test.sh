@@ -92,6 +92,28 @@ grep -q "Are we still on for lunch" "$OUT/feed-accessibility.xml" 2>/dev/null \
   || fail "The posted notification didn't show up in AppPilot's feed"
 check_crash "notifications"
 
+step "Notification dots: an incoming SMS puts a dot next to Messages in the list"
+adb emu sms send 07700900123 "Dot test: running late, see you at 7" || true
+sleep 6
+home
+sleep 2
+shot 05b-notification-dot
+adb shell uiautomator dump /sdcard/ui3.xml >/dev/null 2>&1
+adb pull /sdcard/ui3.xml "$OUT/dots-accessibility.xml" >/dev/null 2>&1 || true
+# Each list row reads "<App>, N notification(s). <latest>" when it has a dot.
+grep -o 'text="[^"]*notification[^"]*"' "$OUT/dots-accessibility.xml" 2>/dev/null | head -5 || true
+MSG_PKG=$(adb shell dumpsys notification --noredact 2>/dev/null | grep -o 'pkg=com\.[a-z.]*messaging' | head -1 | sed 's/pkg=//')
+if [ -z "$MSG_PKG" ]; then
+  echo "::warning::Messages didn't post a notification for the test SMS, so the dot couldn't be checked"
+elif grep -q 'text="Messages, [0-9]* notification' "$OUT/dots-accessibility.xml" 2>/dev/null; then
+  echo "Messages shows a notification dot"
+elif ! grep -q 'text="Messages' "$OUT/dots-accessibility.xml" 2>/dev/null; then
+  echo "::warning::Messages isn't in the home list on this emulator, so the dot couldn't be checked"
+else
+  fail "Messages has a notification ($MSG_PKG) but no dot appeared next to it in the list"
+fi
+check_crash "notification dots"
+
 step "All apps: swipe up on the clock side, then search"
 adb shell input swipe 240 1900 240 800 150
 sleep 2

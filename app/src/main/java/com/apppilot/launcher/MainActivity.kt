@@ -63,7 +63,23 @@ class MainActivity : Activity() {
     private var hadUsageAccess = false
     private var returning = false
 
-    private val notificationListener: () -> Unit = { refreshNotifications() }
+    private val notificationListener: () -> Unit = { refreshNotifications(); updateNotifBanner() }
+
+    /** Set once AppPilot has tried to repair a listener Android left unconnected (e.g. after an update). */
+    private var reconnectTried = false
+
+    /**
+     * Some phones (notably Samsung) don't reconnect the notification listener after AppPilot is updated,
+     * so access shows as allowed but nothing arrives. Ask nicely first, then force it once.
+     */
+    private val connectionCheck = Runnable {
+        if (!NotificationStore.isConnected && NotificationStore.hasAccess(this) && !reconnectTried) {
+            reconnectTried = true
+            NotificationStore.reconnect(this)
+            root.postDelayed({ updateNotifBanner() }, 3000)
+        }
+        updateNotifBanner()
+    }
 
     private val prefsListener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ -> rankDirty = true }
 
@@ -116,6 +132,8 @@ class MainActivity : Activity() {
         applySettings()
         updateBanners()
         NotificationStore.ensureBound(this)
+        root.removeCallbacks(connectionCheck)
+        root.postDelayed(connectionCheck, 2500)
         refreshNotifications()
         val usage = repo.hasUsageAccess()
         if (usage != hadUsageAccess) rankDirty = true
@@ -135,6 +153,7 @@ class MainActivity : Activity() {
         runCatching { unregisterReceiver(screenOffReceiver) }
         prefs.unregisterListener(prefsListener)
         NotificationStore.removeListener(notificationListener)
+        root.removeCallbacks(connectionCheck)
         repo.shutdown()
         super.onDestroy()
     }
@@ -181,8 +200,8 @@ class MainActivity : Activity() {
             AppActions.safeStart(this, Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
         }
 
-        notifBanner = banner("Allow notification access to see dots and recent notifications  ›") {
-            openNotificationAccess()
+        notifBanner = banner("") {
+            if (NotificationStore.hasAccess(this)) fixNotificationConnection() else openNotificationAccess()
         }
 
         leftContent = LinearLayout(this).apply {
@@ -550,9 +569,38 @@ class MainActivity : Activity() {
     private fun updateBanners() {
         homeBanner.visibility = if (isDefaultHome()) View.GONE else View.VISIBLE
         usageBanner.visibility = if (repo.hasUsageAccess()) View.GONE else View.VISIBLE
-        val wantsNotifications = prefs.notifDots || prefs.feedEnabled || prefs.notifPreview
-        notifBanner.visibility =
-            if (wantsNotifications && !NotificationStore.hasAccess(this)) View.VISIBLE else View.GONE
+        updateNotifBanner()
+    }
+
+    /** Prompt while notification access is off, or on but not connected after AppPilot tried to repair it. */
+    private fun updateNotifBanner() {
+        if (!::notifBanner.isInitialized) return
+        val wanted = prefs.notifDots || prefs.feedEnabled || prefs.notifPreview
+        val access = NotificationStore.hasAccess(this)
+        val text = when {
+            !wanted -> null
+            !access -> "Allow notification access to see dots and recent notifications  ›"
+            !NotificationStore.isConnected && reconnectTried -> "Notifications aren't coming through — tap to fix  ›"
+            else -> null
+        }
+        notifBanner.visibility = if (text == null) View.GONE else View.VISIBLE
+        if (text != null) notifBanner.text = text
+    }
+
+    private fun fixNotificationConnection() {
+        NotificationStore.reconnect(this)
+        root.postDelayed({ updateNotifBanner() }, 3000)
+        AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
+            .setTitle("Notifications aren't coming through")
+            .setMessage("Android says AppPilot is allowed to read notifications but hasn't connected it " +
+                "(this can happen after an update). AppPilot has just asked again.\n\n" +
+                "If the dots still don't appear in a few seconds: open the setting, turn AppPilot off, " +
+                "then on again.")
+            .setPositiveButton("Open setting") { _, _ ->
+                AppActions.safeStart(this, NotificationStore.accessSettingsIntent(this))
+            }
+            .setNegativeButton(android.R.string.ok, null)
+            .show()
     }
 
     /** Opens the system switch, explaining first how to unlock it if Android has greyed it out. */
