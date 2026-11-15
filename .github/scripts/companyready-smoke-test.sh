@@ -88,11 +88,13 @@ home
 tap "=Records" 2
 shot records-empty
 tap "Money out" 2
+# Toggle before typing: once the keyboard is up it can cover the switch.
+tap "I paid this personally"
+top
 tap "=0.00" 1
 adb shell input text "1199.00"; sleep 0.5
 tap "e.g. MacBook Air" 1
 adb shell input text "Laptop%sfor%sapp%sdevelopment"; sleep 0.5
-tap "I paid this personally"
 shot entry-form
 tap "=Save" 2
 shot records-with-entry
