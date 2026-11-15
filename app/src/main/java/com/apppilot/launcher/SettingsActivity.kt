@@ -244,6 +244,10 @@ class SettingsActivity : Activity() {
             startForResult(intent, REQ_RESTORE)
         }
 
+        header("About")
+        val version = runCatching { packageManager.getPackageInfo(packageName, 0).versionName }.getOrNull() ?: "?"
+        note("AppPilot version $version. Mention this number when you send feedback.")
+
         scroll.post { scroll.scrollTo(0, y) }
     }
 

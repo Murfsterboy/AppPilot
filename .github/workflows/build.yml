@@ -41,6 +41,28 @@ jobs:
             --notes "Built from ${GITHUB_SHA::7} on ${GITHUB_REF_NAME}. Download AppPilot.apk on your phone and open it to install." \
             --prerelease --target "$GITHUB_SHA"
 
+  # Friends-and-family download: only this branch publishes it, and only after the emulator test passes,
+  # so other branches can't replace it. Link: releases/download/beta/AppPilot.apk
+  publish-beta:
+    name: Publish beta for testers
+    needs: [build, smoke-test]
+    if: github.ref == 'refs/heads/ccr-d9289d8c-qh11ho'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: AppPilot-apk
+      - name: Replace the beta release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release delete beta --cleanup-tag --yes || true
+          gh release create beta AppPilot.apk \
+            --title "AppPilot beta (version 1.0.${GITHUB_RUN_NUMBER})" \
+            --notes "Beta for testers, version 1.0.${GITHUB_RUN_NUMBER} (built from ${GITHUB_SHA::7}). Download AppPilot.apk on your Android phone and open it to install. It installs over earlier versions and keeps your settings." \
+            --prerelease --target "$GITHUB_SHA"
+
   smoke-test:
     name: Emulator smoke test
     needs: build

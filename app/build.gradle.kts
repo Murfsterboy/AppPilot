@@ -11,8 +11,10 @@ android {
         applicationId = "com.apppilot.launcher"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        // CI run number, so every build has a higher version (testers can tell builds apart; Play needs it too).
+        val build = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
+        versionCode = build
+        versionName = "1.0.$build"
     }
 
     // A fixed key so each new build installs over the previous one
