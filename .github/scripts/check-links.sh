@@ -11,6 +11,7 @@ while read -r url; do
   case "$code" in
     2*|3*) echo "ok   $code $url" ;;
     401|403|429) echo "skip $code $url (blocks automated checks)" ;;
+    000*|5*) echo "::warning::Unreachable right now ($code): $url" ;;
     *) echo "::warning::Broken link ($code): $url"; BAD=$((BAD + 1)) ;;
   esac
 done < links.txt

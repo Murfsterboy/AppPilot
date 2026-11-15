@@ -443,7 +443,7 @@ object JourneyA {
             ),
             tasks = listOf(
                 Task("bank.compare", "Compared business bank accounts (fees, software links, FSCS protection)",
-                    link = Link("Compare business bank accounts", "https://www.moneysavingexpert.com/banking/business-bank-accounts/")),
+                    link = Link("MoneySavingExpert bank account guides", "https://www.moneysavingexpert.com/bank-accounts/")),
                 Task("bank.open", "Opened a bank account in the company's name"),
                 Task("bank.separate", "Committed to running all business money through the company account only"),
                 Task("bank.salary", "Decided my salary level for this tax year (for example £6,708 or £12,570)"),

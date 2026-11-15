@@ -196,8 +196,8 @@ object JourneyC {
                 Link("Late filing penalties (accounts)", "https://www.gov.uk/annual-accounts/penalties-for-late-filing", "Companies House"),
                 Link("Late filing penalties (Company Tax Return)", "https://www.gov.uk/company-tax-returns/penalties-for-late-filing", "HMRC"),
                 Link("Find an ACCA accountant", "https://www.accaglobal.com/gb/en/member/find-an-accountant.html", "ACCA"),
-                Link("Find an AAT licensed accountant", "https://www.aat.org.uk/find-accountant", "AAT"),
-                Link("Find a tax adviser (CIOT)", "https://www.tax.org.uk/find-a-cta", "Chartered Institute of Taxation"),
+                Link("Find an AAT licensed accountant", "https://www.aat.org.uk/find-an-accountant-or-bookkeeper", "AAT"),
+                Link("Chartered Institute of Taxation", "https://www.tax.org.uk/", "Find a Chartered Tax Adviser"),
             ),
             quiz = listOf(
                 Question(
