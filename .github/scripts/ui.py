@@ -18,7 +18,18 @@ def nodes(path):
             x1, y1, x2, y2 = map(int, b.groups())
             yield text, desc, ((x1 + x2) // 2, (y1 + y2) // 2)
 
+def texts(path):
+    xml = open(path, encoding="utf-8", errors="replace").read()
+    for m in re.finditer(r"<node [^>]*>", xml):
+        n = m.group(0)
+        t = html.unescape((re.search(r' text="([^"]*)"', n) or [None, ""])[1])
+        if t:
+            checked = ' [checked]' if 'checked="true"' in n else ''
+            print("   |", t[:90] + checked)
+
 def main():
+    if sys.argv[1] == "texts":
+        texts(sys.argv[2]); return
     cmd, path, needle = sys.argv[1], sys.argv[2], sys.argv[3].lower()
     exact = needle.startswith("=")
     if exact:

@@ -36,10 +36,11 @@ tap() {
     read -r X Y < <(python3 "$UI" find "$OUT/ui.xml" "$1")
     adb shell input tap "$X" "$Y"; sleep "${2:-1.5}"
   else
-    fail "Couldn't find \"$1\" on screen"
+    fail "Couldn't find \"$1\" on screen"; screen
   fi
 }
-expect() { scroll_to "$1" || fail "Expected to see \"$1\" ($2)"; }
+screen() { echo "  on screen:"; python3 "$UI" texts "$OUT/ui.xml"; }
+expect() { scroll_to "$1" || { fail "Expected to see \"$1\" ($2)"; screen; }; }
 top() { for _ in 1 2 3 4 5 6 7 8; do adb shell input swipe 540 450 540 1250 150; done; sleep 0.5; }
 home() { adb shell am start -n "$PKG/.MainActivity" -f 0x04000000 >/dev/null; sleep 2; top; }
 
@@ -90,12 +91,14 @@ shot records-empty
 tap "Money out" 2
 # Toggle before typing: once the keyboard is up it can cover the switch.
 tap "I paid this personally"
+dump; screen
 top
 tap "=0.00" 1
 adb shell input text "1199.00"; sleep 0.5
 tap "e.g. MacBook Air" 1
 adb shell input text "Laptop%sfor%sapp%sdevelopment"; sleep 0.5
 shot entry-form
+dump; screen
 tap "=Save" 2
 shot records-with-entry
 expect "Laptop for app development" "saved entry"
