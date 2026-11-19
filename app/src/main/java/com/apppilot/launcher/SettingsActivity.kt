@@ -214,6 +214,10 @@ class SettingsActivity : Activity() {
         header("Home screen")
         switch("Show clock", "Tap the clock to open alarms", prefs.showClock) { prefs.showClock = it }
         switch("Show date", "Tap the date to open your calendar", prefs.showDate) { prefs.showDate = it }
+        slider("Clock side size", 60f, 150f, 5f, prefs.leftSizePercent.toFloat(), {
+            "${it.toInt()}%" + if (it.toInt() == 100) " (standard)" else ""
+        }) { prefs.leftSizePercent = it.toInt() }
+        note("Makes the clock, date, notification cards, hints and favourites bar bigger or smaller.")
         switch("Show gesture hints", null, prefs.showHint) { prefs.showHint = it }
         switch("Favourites bar", "App icons along the bottom of the clock side: your pinned apps first, then your most-used",
             prefs.showFavouritesBar) { prefs.showFavouritesBar = it }

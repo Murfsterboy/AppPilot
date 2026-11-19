@@ -58,6 +58,8 @@ class Prefs(context: Context) {
     var showHint by BoolPref("show_hint", true)
     /** Row of app icons along the bottom of the clock side: pins first, then most-used. */
     var showFavouritesBar by BoolPref("favourites_bar", tablet)
+    /** Size of the clock side (clock, date, notifications, hints, favourites), as a percentage. */
+    var leftSizePercent by IntPref("left_size", 100)
     var autoKeyboard by BoolPref("auto_keyboard", true)
     var animateReturn by BoolPref("animate_return", true)
     var searchContacts by BoolPref("search_contacts", true)

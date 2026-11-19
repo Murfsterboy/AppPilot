@@ -117,7 +117,8 @@ Notes:
 
 ### Tablet layout (19 Nov)
 - For a Samsung tablet used in landscape **instead of DeX** (the owner uses DeX only for its look).
-- On tablets (smallest side ≥ 600dp): clock, text, feed and padding drawn ~1.45× larger; defaults of
+- On tablets (smallest side ≥ 600dp): clock, text, feed and padding drawn 1.15× larger (first tried 1.45×: "too big and chunky"),
+  adjustable with Settings → Home screen → **Clock side size** (60–150%); defaults of
   24sp list text, a 38% list width and 6 feed cards (only until changed in settings).
 - **Favourites bar**: a desktop-style row of up to 8 app icons along the bottom of the clock side,
   pins first then most-used (`FavouritesBar.kt`). On by default on tablets, optional on phones.

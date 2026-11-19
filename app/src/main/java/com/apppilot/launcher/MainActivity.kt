@@ -306,7 +306,7 @@ class MainActivity : Activity() {
     ).apply { topMargin = dpi(20); marginEnd = dpi(8) }
 
     private fun applyPadding() {
-        val ui = uiScale()
+        val ui = leftScale()
         leftPanel.setPadding((dp(28f) * ui).toInt(), insetTop + (dp(56f) * ui).toInt(), dpi(16), insetBottom + (dp(28f) * ui).toInt())
         // Keep the list a little away from the screen edge so the back gesture doesn't grab it.
         val inner = dpi(18); val outer = dpi(26)
@@ -443,7 +443,7 @@ class MainActivity : Activity() {
         rightPanel.setBackgroundColor(rightColor)
 
         val lt = prefs.leftText
-        val ui = uiScale()
+        val ui = leftScale()
         clock.textSize = 58f * ui
         date.textSize = 16f * ui
         hint.textSize = 12f * ui
@@ -564,6 +564,9 @@ class MainActivity : Activity() {
         }
     }
 
+    /** Size of everything on the clock side: larger on tablets, times the user's "Clock side size". */
+    private fun leftScale(): Float = uiScale() * prefs.leftSizePercent.coerceIn(50, 200) / 100f
+
     /** Pinned apps and shortcuts first, then the most-used ones: the same order as the list. */
     private fun bindFavourites() {
         if (!::favourites.isInitialized) return
@@ -572,7 +575,7 @@ class MainActivity : Activity() {
             return
         }
         val slots = if (isTablet()) 8 else 5
-        favourites.bind(apps.take(slots), prefs.leftText, uiScale())
+        favourites.bind(apps.take(slots), prefs.leftText, leftScale())
     }
 
     /** Tablet / phone sizing changes when the screen changes (e.g. rotating, folding, resizing). */

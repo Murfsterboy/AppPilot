@@ -17,7 +17,7 @@ fun Context.sp(v: Float): Float =
 fun Context.isTablet(): Boolean = resources.configuration.smallestScreenWidthDp >= 600
 
 /** How much bigger the home screen's clock, text and feed are drawn on a tablet. */
-fun Context.uiScale(): Float = if (isTablet()) 1.45f else 1f
+fun Context.uiScale(): Float = if (isTablet()) 1.15f else 1f
 
 fun View.dp(v: Float): Float = context.dp(v)
 fun View.sp(v: Float): Float = context.sp(v)
