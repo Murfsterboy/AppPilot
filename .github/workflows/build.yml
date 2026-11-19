@@ -2,6 +2,11 @@ name: Build APK
 
 on:
   push:
+    # FilmPilot has its own workflow (filmpilot.yml); don't rebuild AppPilot for it.
+    paths-ignore:
+      - 'filmpilot/**'
+      - '.github/workflows/filmpilot.yml'
+      - '.github/scripts/filmpilot-smoke-test.sh'
   workflow_dispatch:
 
 permissions:
