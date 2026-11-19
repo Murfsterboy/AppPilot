@@ -77,7 +77,9 @@ object NotificationStore {
 
     /** Opens what the notification points to (like tapping it in the shade). */
     fun open(context: Context, e: NotificationEntry, prefs: Prefs) {
-        val sent = runCatching { e.contentIntent?.send() }.isSuccess && e.contentIntent != null
+        val sent = e.contentIntent?.let { pi ->
+            runCatching { pi.send(context, 0, null, null, null, null, launchOptions()) }.isSuccess
+        } ?: false
         if (!sent) {
             context.packageManager.getLaunchIntentForPackage(e.packageName)?.let {
                 runCatching { context.startActivity(it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
@@ -85,6 +87,20 @@ object NotificationStore {
         }
         if (e.autoCancel) dismiss(e)
         prefs.recordLaunch(e.packageName)
+    }
+
+    /**
+     * From Android 14, an app that fires another app's notification action must say it allows that
+     * action to open a screen. Without this, tapping a WhatsApp or Outlook notification in the feed
+     * silently does nothing (only exempt apps, like the default SMS app, got through).
+     */
+    private fun launchOptions(): android.os.Bundle? {
+        if (Build.VERSION.SDK_INT < 34) return null
+        return android.app.ActivityOptions.makeBasic().apply {
+            @Suppress("DEPRECATION")
+            setPendingIntentBackgroundActivityStartMode(
+                android.app.ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED)
+        }.toBundle()
     }
 
     // ---- Permission ----

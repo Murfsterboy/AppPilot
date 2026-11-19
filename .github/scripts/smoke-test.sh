@@ -114,6 +114,20 @@ else
 fi
 check_crash "notification dots"
 
+step "Tap a notification in the feed to open it"
+CARD=$(grep -o 'text="Dot test: running late, see you at 7"[^>]*bounds="\[[0-9]*,[0-9]*\]\[[0-9]*,[0-9]*\]"' "$OUT/dots-accessibility.xml" | head -1)
+if [ -z "$CARD" ]; then
+  echo "::warning::The test SMS isn't in the feed, so tapping it couldn't be checked"
+else
+  set -- $(echo "$CARD" | grep -o '[0-9]\+' | tail -4)
+  adb shell input tap $(( ($1 + $3) / 2 )) $(( ($2 + $4) / 2 ))
+  sleep 3
+  shot 05b2-notification-opened
+  resumed | grep -q "messaging" || fail "Tapping the Messages notification in the feed didn't open Messages: $(resumed)"
+  home
+fi
+check_crash "opening a notification"
+
 step "Notification feed: '+N more' expands to a scrollable list"
 for n in 1 2 3 4 5 6 7; do
   adb shell "cmd notification post -t 'Feed test $n' feed$n 'Scroll test message number $n'" >/dev/null
