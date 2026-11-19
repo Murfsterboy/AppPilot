@@ -20,6 +20,8 @@ data class Preset(
 class Prefs(context: Context) {
     private val sp = context.getSharedPreferences("apppilot", Context.MODE_PRIVATE)
     private val history = context.getSharedPreferences("launch_history", Context.MODE_PRIVATE)
+    /** Tablets start with bigger text, a narrower list and the favourites bar (only until changed). */
+    private val tablet = context.isTablet()
 
     // ---- Colours ----
     var leftBg by IntPref("left_bg", DEFAULT.leftBg)
@@ -33,10 +35,10 @@ class Prefs(context: Context) {
 
     // ---- List ----
     var appCount by IntPref("app_count", 15)
-    var textSizeSp by FloatPref("text_size", 17f)
+    var textSizeSp by FloatPref("text_size", if (tablet) 24f else 17f)
     var magnification by FloatPref("magnification", 2.3f)
     var spread by FloatPref("spread", 1.3f)
-    var panelPercent by IntPref("panel_percent", 55)
+    var panelPercent by IntPref("panel_percent", if (tablet) 38 else 55)
     var verticalBias by FloatPref("vertical_bias", 0.55f)
     var showIcons by BoolPref("show_icons", false)
     var highlightPill by BoolPref("pill", true)
@@ -54,6 +56,8 @@ class Prefs(context: Context) {
     var showClock by BoolPref("show_clock", true)
     var showDate by BoolPref("show_date", true)
     var showHint by BoolPref("show_hint", true)
+    /** Row of app icons along the bottom of the clock side: pins first, then most-used. */
+    var showFavouritesBar by BoolPref("favourites_bar", tablet)
     var autoKeyboard by BoolPref("auto_keyboard", true)
     var animateReturn by BoolPref("animate_return", true)
     var searchContacts by BoolPref("search_contacts", true)
@@ -68,7 +72,7 @@ class Prefs(context: Context) {
     var feedEnabled by BoolPref("feed_enabled", true)
     /** 0 = clock side, 1 = list side */
     var feedSide by IntPref("feed_side", 0)
-    var feedMax by IntPref("feed_max", 4)
+    var feedMax by IntPref("feed_max", if (tablet) 6 else 4)
     var includeOngoing by BoolPref("include_ongoing", false)
     /** Packages whose notifications AppPilot doesn't show (the phone still receives them). */
     var notifHidden: Set<String>

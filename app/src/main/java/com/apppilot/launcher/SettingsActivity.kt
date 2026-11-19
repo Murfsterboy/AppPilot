@@ -215,6 +215,8 @@ class SettingsActivity : Activity() {
         switch("Show clock", "Tap the clock to open alarms", prefs.showClock) { prefs.showClock = it }
         switch("Show date", "Tap the date to open your calendar", prefs.showDate) { prefs.showDate = it }
         switch("Show gesture hints", null, prefs.showHint) { prefs.showHint = it }
+        switch("Favourites bar", "App icons along the bottom of the clock side: your pinned apps first, then your most-used",
+            prefs.showFavouritesBar) { prefs.showFavouritesBar = it }
         switch("Open keyboard in all-apps", "Start typing to search straight away", prefs.autoKeyboard) {
             prefs.autoKeyboard = it
         }

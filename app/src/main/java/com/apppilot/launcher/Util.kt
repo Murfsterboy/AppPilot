@@ -13,6 +13,12 @@ fun Context.dpi(v: Int): Int = dp(v.toFloat()).toInt()
 fun Context.sp(v: Float): Float =
     TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, v, resources.displayMetrics)
 
+/** Tablets (and large foldables): the smaller screen side is at least 600dp. */
+fun Context.isTablet(): Boolean = resources.configuration.smallestScreenWidthDp >= 600
+
+/** How much bigger the home screen's clock, text and feed are drawn on a tablet. */
+fun Context.uiScale(): Float = if (isTablet()) 1.45f else 1f
+
 fun View.dp(v: Float): Float = context.dp(v)
 fun View.sp(v: Float): Float = context.sp(v)
 fun View.dpi(v: Int): Int = context.dpi(v)

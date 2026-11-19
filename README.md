@@ -58,6 +58,9 @@ Each build is signed with the same key, so new versions install over old ones.
     (tap to open, long-press to dismiss/hide, "Clear all");
   - choose which apps' notifications AppPilot shows. This doesn't block them on the phone;
     each app's long-press menu links to its system notification settings for that.
+- **Tablets** (e.g. Samsung Galaxy Tab, with DeX turned off): everything is drawn larger, the list is
+  narrower, and a **favourites bar** of app icons sits along the bottom of the clock side (your pins first,
+  then your most-used apps), like a desktop taskbar. It can be turned on or off on phones too (Settings → Home screen).
 - **Backup / restore**: save all settings, pins and hidden apps to a file and load them again
   (handy for a new phone).
 

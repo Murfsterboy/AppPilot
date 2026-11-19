@@ -23,6 +23,9 @@ class NotificationFeedView(context: Context) : LinearLayout(context) {
 
     var listener: Listener? = null
 
+    /** Grows text and icons on tablets. */
+    var scale = 1f
+
     private val header = LinearLayout(context).apply {
         orientation = HORIZONTAL
         gravity = Gravity.CENTER_VERTICAL
@@ -103,6 +106,9 @@ class NotificationFeedView(context: Context) : LinearLayout(context) {
         visibility = if (entries.isEmpty()) View.GONE else View.VISIBLE
         if (entries.isEmpty()) { expanded = false; return }
         title.setTextColor(accent)
+        title.textSize = 12f * scale
+        clear.textSize = 12f * scale
+        more.textSize = 13f * scale
         clear.setTextColor(textColor)
         clear.visibility = if (entries.any { it.clearable }) View.VISIBLE else View.GONE
         addView(header)
@@ -133,14 +139,14 @@ class NotificationFeedView(context: Context) : LinearLayout(context) {
             val ago = DateUtils.getRelativeTimeSpanString(e.time, now, DateUtils.MINUTE_IN_MILLIS,
                 DateUtils.FORMAT_ABBREV_RELATIVE)
             text = "${e.appLabel} · $ago"
-            textSize = 11f
+            textSize = 11f * scale
             setTextColor(Colors.withAlpha(textColor, 0.6f))
             isSingleLine = true
             ellipsize = TextUtils.TruncateAt.END
         }
         val head = TextView(context).apply {
             text = e.title.ifBlank { e.text }
-            textSize = 14f
+            textSize = 14f * scale
             typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
             setTextColor(textColor)
             isSingleLine = true
@@ -148,7 +154,7 @@ class NotificationFeedView(context: Context) : LinearLayout(context) {
         }
         val body = TextView(context).apply {
             text = e.text
-            textSize = 13f
+            textSize = 13f * scale
             setTextColor(Colors.withAlpha(textColor, 0.8f))
             maxLines = 2
             ellipsize = TextUtils.TruncateAt.END
@@ -160,12 +166,13 @@ class NotificationFeedView(context: Context) : LinearLayout(context) {
         }
         return LinearLayout(context).apply {
             orientation = HORIZONTAL
-            setPadding(dpi(12), dpi(10), dpi(12), dpi(10))
+            setPadding((dp(12f) * scale).toInt(), (dp(10f) * scale).toInt(), (dp(12f) * scale).toInt(), (dp(10f) * scale).toInt())
             background = GradientDrawable().apply {
-                cornerRadius = dp(14f)
+                cornerRadius = dp(14f) * scale
                 setColor(Colors.withAlpha(textColor, 0.08f))
             }
-            addView(icon, LayoutParams(dpi(18), dpi(18)).apply { topMargin = dpi(2); marginEnd = dpi(10) })
+            val iconPx = (dp(18f) * scale).toInt()
+            addView(icon, LayoutParams(iconPx, iconPx).apply { topMargin = dpi(2); marginEnd = (dp(10f) * scale).toInt() })
             addView(texts, LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f))
             contentDescription = "${e.appLabel}: ${e.summary}"
             setOnClickListener { listener?.onOpen(e) }

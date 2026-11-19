@@ -52,6 +52,9 @@ class MainActivity : Activity() {
     private lateinit var listView: MagnifyListView
     private lateinit var rightPanel: LinearLayout
     private lateinit var feed: NotificationFeedView
+    private lateinit var favourites: FavouritesBar
+    /** Bottom of the clock side: gesture hints above the favourites bar. */
+    private lateinit var leftBottom: LinearLayout
 
     private var apps: List<AppEntry> = emptyList()
     private var insetTop = 0
@@ -220,11 +223,27 @@ class MainActivity : Activity() {
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
         }
 
+        favourites = FavouritesBar(this).apply {
+            visibility = View.GONE
+            listener = object : FavouritesBar.Listener {
+                override fun onOpen(app: AppEntry, tile: View) =
+                    AppActions.launch(this@MainActivity, app, prefs, tile, Rect(0, 0, tile.width, tile.height))
+                override fun onMenu(app: AppEntry) = AppActions.showMenu(this@MainActivity, app, prefs) { reload() }
+            }
+        }
+        leftBottom = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(hint)
+            addView(favourites, LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { topMargin = dpi(18) })
+        }
+
         leftPanel = FrameLayout(this).apply {
             addView(leftContent, FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.TOP))
-            addView(hint, FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT,
+            addView(leftBottom, FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT,
                 Gravity.BOTTOM or Gravity.START))
         }
         leftPanel.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> leftPanel.post { updateFeedHeight() } }
@@ -287,7 +306,8 @@ class MainActivity : Activity() {
     ).apply { topMargin = dpi(20); marginEnd = dpi(8) }
 
     private fun applyPadding() {
-        leftPanel.setPadding(dpi(28), insetTop + dpi(56), dpi(16), insetBottom + dpi(28))
+        val ui = uiScale()
+        leftPanel.setPadding((dp(28f) * ui).toInt(), insetTop + (dp(56f) * ui).toInt(), dpi(16), insetBottom + (dp(28f) * ui).toInt())
         // Keep the list a little away from the screen edge so the back gesture doesn't grab it.
         val inner = dpi(18); val outer = dpi(26)
         rightPanel.setPadding(0, insetTop, 0, insetBottom)
@@ -423,6 +443,12 @@ class MainActivity : Activity() {
         rightPanel.setBackgroundColor(rightColor)
 
         val lt = prefs.leftText
+        val ui = uiScale()
+        clock.textSize = 58f * ui
+        date.textSize = 16f * ui
+        hint.textSize = 12f * ui
+        for (b in listOf(homeBanner, usageBanner, notifBanner)) b.textSize = 13f * ui
+        feed.scale = ui
         clock.setTextColor(lt); date.setTextColor(lt); hint.setTextColor(lt)
         clock.visibility = if (prefs.showClock) View.VISIBLE else View.GONE
         date.visibility = if (prefs.showDate) View.VISIBLE else View.GONE
@@ -453,6 +479,7 @@ class MainActivity : Activity() {
             showPreview = prefs.notifPreview
         }
         placeFeed()
+        bindFavourites()
 
         // Arrange [clock side | list], or [list | clock side] in left-handed mode.
         // Only rebuilt when it changes, to avoid a relayout every time you come home.
@@ -511,6 +538,7 @@ class MainActivity : Activity() {
             }
             apps = ranked
             listView.setItems(ranked.map { MagnifyListView.Item(it.label, it.icon) })
+            bindFavourites()
             refreshNotifications()
         }
     }
@@ -536,6 +564,24 @@ class MainActivity : Activity() {
         }
     }
 
+    /** Pinned apps and shortcuts first, then the most-used ones: the same order as the list. */
+    private fun bindFavourites() {
+        if (!::favourites.isInitialized) return
+        if (!prefs.showFavouritesBar) {
+            favourites.visibility = View.GONE
+            return
+        }
+        val slots = if (isTablet()) 8 else 5
+        favourites.bind(apps.take(slots), prefs.leftText, uiScale())
+    }
+
+    /** Tablet / phone sizing changes when the screen changes (e.g. rotating, folding, resizing). */
+    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+        super.onConfigurationChanged(newConfig)
+        applySettings()
+        refreshNotifications()
+    }
+
     /** Lets the feed's cards scroll in the space they have: down to the gesture hints, or part of the list side. */
     private fun updateFeedHeight() {
         if (!::feed.isInitialized) return
@@ -544,7 +590,7 @@ class MainActivity : Activity() {
         val max = if (parent === rightPanel) {
             (rightPanel.height * 0.45f).toInt()
         } else {
-            val hintSpace = if (hint.visibility == View.VISIBLE) hint.height + dpi(20) else 0
+            val hintSpace = if (leftBottom.height > 0) leftBottom.height + dpi(20) else 0
             val bottom = leftPanel.height - leftPanel.paddingBottom - hintSpace
             // Ignore the slide-in animation's offset so the size doesn't jump while it plays.
             val top = feed.listTopIn(leftPanel) - leftContent.translationY.toInt()

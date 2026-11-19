@@ -115,6 +115,16 @@ Notes:
   so tapping WhatsApp/Outlook cards did nothing. `NotificationStore.open` now opts in
   (`setPendingIntentBackgroundActivityStartMode`). Confirmed working on the owner's phone.
 
+### Tablet layout (19 Nov)
+- For a Samsung tablet used in landscape **instead of DeX** (the owner uses DeX only for its look).
+- On tablets (smallest side ≥ 600dp): clock, text, feed and padding drawn ~1.45× larger; defaults of
+  24sp list text, a 38% list width and 6 feed cards (only until changed in settings).
+- **Favourites bar**: a desktop-style row of up to 8 app icons along the bottom of the clock side,
+  pins first then most-used (`FavouritesBar.kt`). On by default on tablets, optional on phones.
+- AppPilot can't replace DeX itself; turn DeX off and set AppPilot as the home app. Samsung's own tablet
+  taskbar probably only appears with Samsung's home screen, hence the favourites bar.
+- Smoke test simulates a 2560×1600 tablet and checks the favourites bar appears.
+
 ### Choosing which notifications show
 - Long-press a card → **Hide [app] notifications in AppPilot** (use this for system ones like Samsung capture), or
   Settings → Notifications → **Choose which apps show notifications**. Only affects AppPilot, not the phone.
@@ -153,4 +163,4 @@ Draft listing text: name **"AppPilot: Minimal Launcher"**, short description
 
 - First-run setup screen (home app → usage access → notifications, including the restricted-settings step).
 - In-app **Send feedback** button that fills in phone model, Android version and app version.
-- Tablet layout tuning (wider screens, landscape).
+- Open an app in split screen from the long-press menu (tablets).

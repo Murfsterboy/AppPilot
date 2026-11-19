@@ -185,6 +185,25 @@ check_crash "settings"
 resumed | grep -q "SettingsActivity" || fail "Long-press didn't open settings: $(resumed)"
 adb shell input keyevent KEYCODE_BACK; sleep 1
 
+step "Tablet: landscape tablet screen shows the favourites bar"
+adb shell wm size 2560x1600
+adb shell wm density 320
+sleep 4
+home
+sleep 3
+shot 12a-tablet-landscape
+adb shell uiautomator dump /sdcard/ui6.xml >/dev/null 2>&1
+adb pull /sdcard/ui6.xml "$OUT/tablet-accessibility.xml" >/dev/null 2>&1 || true
+TILES=$(grep -o 'content-desc="Favourites bar"' "$OUT/tablet-accessibility.xml" 2>/dev/null | wc -l)
+echo "favourites bar found: $TILES"
+[ "$TILES" -ge 1 ] || fail "The favourites bar didn't appear on a tablet-sized screen"
+resumed | grep -q "$PKG" || fail "AppPilot isn't the home screen on the tablet-sized screen: $(resumed)"
+check_crash "tablet layout"
+adb shell wm size reset
+adb shell wm density reset
+sleep 4
+home
+
 step "Rotate to landscape and back"
 adb shell settings put system accelerometer_rotation 0
 adb shell settings put system user_rotation 1; sleep 2
