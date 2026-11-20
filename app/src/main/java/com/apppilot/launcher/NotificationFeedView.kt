@@ -6,7 +6,14 @@ import android.graphics.drawable.GradientDrawable
 import android.text.TextUtils
 import android.text.format.DateUtils
 import android.view.Gravity
+import android.view.HapticFeedbackConstants
+import android.view.MotionEvent
+import android.view.VelocityTracker
 import android.view.View
+import android.view.ViewConfiguration
+import android.view.accessibility.AccessibilityNodeInfo
+import android.view.animation.DecelerateInterpolator
+import android.widget.Toast
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -19,6 +26,7 @@ class NotificationFeedView(context: Context) : LinearLayout(context) {
         fun onOpen(e: NotificationEntry)
         fun onMenu(e: NotificationEntry)
         fun onClearAll()
+        fun onDismiss(e: NotificationEntry)
     }
 
     var listener: Listener? = null
@@ -177,6 +185,112 @@ class NotificationFeedView(context: Context) : LinearLayout(context) {
             contentDescription = "${e.appLabel}: ${e.summary}"
             setOnClickListener { listener?.onOpen(e) }
             setOnLongClickListener { listener?.onMenu(e); true }
+            setOnTouchListener(SwipeToDismiss(e))
+            // Screen readers can't swipe a card away, so offer Dismiss as an action.
+            accessibilityDelegate = object : View.AccessibilityDelegate() {
+                override fun onInitializeAccessibilityNodeInfo(host: View, info: AccessibilityNodeInfo) {
+                    super.onInitializeAccessibilityNodeInfo(host, info)
+                    if (e.clearable) info.addAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_DISMISS)
+                }
+
+                override fun performAccessibilityAction(host: View, action: Int, args: android.os.Bundle?): Boolean {
+                    if (action == AccessibilityNodeInfo.AccessibilityAction.ACTION_DISMISS.id && e.clearable) {
+                        listener?.onDismiss(e); return true
+                    }
+                    return super.performAccessibilityAction(host, action, args)
+                }
+            }
+        }
+    }
+
+    /**
+     * Drag a card left or right to dismiss it: it follows the finger and fades, and goes once dragged
+     * about a third of its width (or flicked). A short drag springs back. Taps and long-presses still work,
+     * and vertical drags still scroll the feed.
+     */
+    private inner class SwipeToDismiss(private val e: NotificationEntry) : View.OnTouchListener {
+        private val slop = ViewConfiguration.get(context).scaledTouchSlop
+        private val minFling = ViewConfiguration.get(context).scaledMinimumFlingVelocity * 4
+        private var downX = 0f
+        private var downY = 0f
+        private var dragging = false
+        private var velocity: VelocityTracker? = null
+
+        private fun track(ev: MotionEvent) {
+            // Raw coordinates, because the card itself moves while dragged.
+            val copy = MotionEvent.obtain(ev).apply { setLocation(ev.rawX, ev.rawY) }
+            velocity?.addMovement(copy)
+            copy.recycle()
+        }
+
+        override fun onTouch(v: View, ev: MotionEvent): Boolean {
+            when (ev.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    v.animate().cancel()
+                    downX = ev.rawX; downY = ev.rawY; dragging = false
+                    velocity?.recycle()
+                    velocity = VelocityTracker.obtain()
+                    track(ev)
+                    return false // let the card handle press / tap / long-press as usual
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    track(ev)
+                    val dx = ev.rawX - downX
+                    val dy = ev.rawY - downY
+                    if (!dragging && kotlin.math.abs(dx) > slop && kotlin.math.abs(dx) > kotlin.math.abs(dy) * 1.5f) {
+                        dragging = true
+                        v.parent?.requestDisallowInterceptTouchEvent(true) // don't let the feed scroll take over
+                        // Cancel the press so a long drag doesn't count as a long-press or tap.
+                        val cancel = MotionEvent.obtain(ev).apply { action = MotionEvent.ACTION_CANCEL }
+                        v.onTouchEvent(cancel)
+                        cancel.recycle()
+                    }
+                    if (dragging) {
+                        v.translationX = dx
+                        v.alpha = (1f - kotlin.math.abs(dx) / (v.width * 0.9f)).coerceIn(0.15f, 1f)
+                        return true
+                    }
+                    return false
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    track(ev)
+                    val wasDragging = dragging
+                    dragging = false
+                    val vt = velocity
+                    vt?.computeCurrentVelocity(1000)
+                    val vx = vt?.xVelocity ?: 0f
+                    vt?.recycle(); velocity = null
+                    if (!wasDragging) return false
+                    val dx = v.translationX
+                    val far = kotlin.math.abs(dx) > v.width * 0.33f
+                    val flung = kotlin.math.abs(vx) > minFling && kotlin.math.sign(vx) == kotlin.math.sign(dx) &&
+                        kotlin.math.abs(dx) > slop * 2
+                    if (ev.actionMasked == MotionEvent.ACTION_UP && (far || flung)) dismiss(v, dx) else springBack(v)
+                    return true
+                }
+            }
+            return false
+        }
+
+        private fun springBack(v: View) {
+            v.animate().translationX(0f).alpha(1f).setDuration(180)
+                .setInterpolator(DecelerateInterpolator()).start()
+        }
+
+        private fun dismiss(v: View, dx: Float) {
+            if (!e.clearable) {
+                springBack(v)
+                Toast.makeText(context, "${e.appLabel} doesn't let this notification be dismissed", Toast.LENGTH_SHORT).show()
+                return
+            }
+            v.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+            val target = if (dx >= 0) v.width * 1.2f else -v.width * 1.2f
+            v.animate().translationX(target).alpha(0f).setDuration(160)
+                .setInterpolator(DecelerateInterpolator())
+                .withEndAction {
+                    v.visibility = View.GONE
+                    listener?.onDismiss(e)
+                }.start()
         }
     }
 }

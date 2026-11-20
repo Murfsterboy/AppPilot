@@ -274,6 +274,7 @@ class MainActivity : Activity() {
                 override fun onOpen(e: NotificationEntry) = NotificationStore.open(this@MainActivity, e, prefs)
                 override fun onMenu(e: NotificationEntry) = showNotificationMenu(e)
                 override fun onClearAll() = NotificationStore.dismissAll(prefs)
+                override fun onDismiss(e: NotificationEntry) = NotificationStore.dismiss(e)
             }
         }
 

@@ -126,6 +126,11 @@ Notes:
   taskbar probably only appears with Samsung's home screen, hence the favourites bar.
 - Smoke test simulates a 2560×1600 tablet and checks the favourites bar appears.
 
+### Swipe to dismiss (20 Nov)
+- Drag a feed card left or right to dismiss it (follows the finger, fades; goes past ~1/3 width or on a flick,
+  otherwise springs back). Tap still opens, long-press still shows the menu, vertical drags still scroll.
+  Ongoing notifications that can't be cleared spring back with a message. TalkBack gets a "Dismiss" action.
+
 ### Choosing which notifications show
 - Long-press a card → **Hide [app] notifications in AppPilot** (use this for system ones like Samsung capture), or
   Settings → Notifications → **Choose which apps show notifications**. Only affects AppPilot, not the phone.

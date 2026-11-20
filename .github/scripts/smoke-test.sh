@@ -128,6 +128,32 @@ else
 fi
 check_crash "opening a notification"
 
+step "Swipe a notification card sideways to dismiss it"
+home
+sleep 1
+adb shell uiautomator dump /sdcard/ui-swipe.xml >/dev/null 2>&1
+adb pull /sdcard/ui-swipe.xml "$OUT/swipe-before.xml" >/dev/null 2>&1 || true
+LUNCH=$(grep -o 'text="Are we still on for lunch?"[^>]*bounds="\[[0-9]*,[0-9]*\]\[[0-9]*,[0-9]*\]"' "$OUT/swipe-before.xml" | head -1)
+if [ -z "$LUNCH" ]; then
+  echo "::warning::The lunch notification isn't in the feed, so swipe-to-dismiss couldn't be checked"
+else
+  set -- $(echo "$LUNCH" | grep -o '[0-9]\+' | tail -4)
+  Y=$(( ($2 + $4) / 2 ))
+  adb shell input swipe 120 $Y 620 $Y 180
+  sleep 2.5
+  shot 05b3-notification-swiped
+  # Leave and come back: the feed is rebuilt from the phone's notifications, so this proves it was really dismissed.
+  home
+  sleep 2
+  adb shell uiautomator dump /sdcard/ui-swipe2.xml >/dev/null 2>&1
+  adb pull /sdcard/ui-swipe2.xml "$OUT/swipe-after.xml" >/dev/null 2>&1 || true
+  if grep -q 'Are we still on for lunch' "$OUT/swipe-after.xml" 2>/dev/null; then
+    fail "Swiping the notification card sideways didn't dismiss it"
+  fi
+  resumed | grep -q "$PKG" || fail "Swiping a notification opened something instead of dismissing it: $(resumed)"
+fi
+check_crash "swipe to dismiss"
+
 step "Notification feed: '+N more' expands to a scrollable list"
 for n in 1 2 3 4 5 6 7; do
   adb shell "cmd notification post -t 'Feed test $n' feed$n 'Scroll test message number $n'" >/dev/null
