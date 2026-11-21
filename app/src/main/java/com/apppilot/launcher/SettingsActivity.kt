@@ -233,7 +233,7 @@ class SettingsActivity : Activity() {
         switch("Animate on return", "The list fades and slides in when you come back home", prefs.animateReturn) {
             prefs.animateReturn = it
         }
-        note("Clock side: swipe up for all apps, swipe down for notifications, hold for settings.")
+        note("Clock side: swipe up for all apps, swipe down for notifications, hold to add a widget or open settings.")
 
         header("Backup")
         action("Back up settings", "Save colours, pins, hidden apps and shortcuts to a file") {

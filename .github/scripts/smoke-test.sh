@@ -13,6 +13,16 @@ shot() { adb exec-out screencap -p > "$OUT/$1.png" && echo "screenshot: $1"; }
 fail() { echo "::error::$*"; FAILED=1; }
 resumed() { adb shell dumpsys activity activities | grep -m1 -E "topResumedActivity|mResumedActivity" | tr -d '\r'; }
 home() { adb shell input keyevent KEYCODE_HOME; sleep 2; }
+# Taps the on-screen element whose text matches the regex $1 (via a UI dump). Returns 1 if not found.
+tap_text() {
+  adb shell uiautomator dump /sdcard/tap.xml >/dev/null 2>&1
+  adb pull /sdcard/tap.xml "$OUT/tap.xml" >/dev/null 2>&1 || return 1
+  local hit
+  hit=$(grep -o "text=\"$1\"[^>]*bounds=\"\[[0-9]*,[0-9]*\]\[[0-9]*,[0-9]*\]\"" "$OUT/tap.xml" | head -1)
+  [ -z "$hit" ] && return 1
+  set -- $(echo "$hit" | grep -o 'bounds=.*' | grep -o '[0-9]\+')
+  adb shell input tap $(( ($1 + $3) / 2 )) $(( ($2 + $4) / 2 ))
+}
 check_crash() {
   if adb logcat -d -b crash | grep -q "$PKG"; then
     adb logcat -d -b crash
@@ -26,6 +36,7 @@ adb install -r AppPilot.apk || { echo "::error::install failed"; exit 1; }
 adb shell appops set $PKG GET_USAGE_STATS allow
 adb shell pm grant $PKG android.permission.READ_CONTACTS || true
 adb shell cmd package set-home-activity "$PKG/.MainActivity"
+adb shell cmd appwidget grantbind --package $PKG || true
 adb shell cmd notification allow_listener "$PKG/$PKG.NotificationService" || true
 adb shell settings put system screen_off_timeout 1800000
 
@@ -185,6 +196,35 @@ else
 fi
 check_crash "feed scrolling"
 
+step "Widgets: hold the clock side, add a clock widget"
+home
+adb shell input swipe 240 2100 240 2100 1200
+sleep 1.5
+shot 05e-home-menu
+if ! tap_text "Add a widget"; then
+  fail "Holding the clock side didn't show 'Add a widget'"
+else
+  sleep 2
+  shot 05f-widget-picker
+  if tap_text "Clock[^\"]*" || tap_text "Chrome[^\"]*"; then
+    sleep 4
+    adb shell input keyevent KEYCODE_BACK >/dev/null 2>&1 || true  # leave a widget settings screen if one opened
+    home
+    sleep 2
+    shot 05g-widget-added
+    adb shell uiautomator dump /sdcard/ui-w.xml >/dev/null 2>&1
+    adb pull /sdcard/ui-w.xml "$OUT/widget.xml" >/dev/null 2>&1 || true
+    grep -o 'content-desc="Widget: [^"]*"' "$OUT/widget.xml" | head -3 || true
+    grep -q 'content-desc="Widget: ' "$OUT/widget.xml" 2>/dev/null || fail "The chosen widget didn't appear on the home screen"
+  else
+    echo "::warning::No Clock or Chrome widget on this emulator, so adding one couldn't be checked"
+    adb shell input keyevent KEYCODE_BACK
+  fi
+fi
+resumed | grep -q "$PKG" || fail "AppPilot isn't on screen after adding a widget: $(resumed)"
+check_crash "widgets"
+home
+
 step "All apps: swipe up on the clock side, then search"
 # Start below the notification feed (beside the gesture hints) so the swipe reaches the clock side.
 adb shell input swipe 240 2100 240 800 150
@@ -198,8 +238,10 @@ adb shell input keyevent KEYCODE_BACK; sleep 0.5
 adb shell input keyevent KEYCODE_BACK; sleep 1
 home
 
-step "Settings: long-press the clock side"
+step "Settings: hold the clock side, then choose AppPilot settings"
 adb shell input swipe 240 2100 240 2100 1200
+sleep 1.5
+tap_text "AppPilot settings" || fail "Holding the clock side didn't offer 'AppPilot settings'"
 sleep 2.5
 shot 07-settings
 for i in 1 2 3 4; do

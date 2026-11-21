@@ -60,6 +60,10 @@ class Prefs(context: Context) {
     var showFavouritesBar by BoolPref("favourites_bar", tablet)
     /** Size of the clock side (clock, date, notifications, hints, favourites), as a percentage. */
     var leftSizePercent by IntPref("left_size", 100)
+    /** Ids of the widgets on the clock side, top to bottom. */
+    var widgetIds: List<Int>
+        get() = sp.getString("widgets", "")!!.split(',').mapNotNull { it.trim().toIntOrNull() }
+        set(v) = sp.edit().putString("widgets", v.joinToString(",")).apply()
     var autoKeyboard by BoolPref("auto_keyboard", true)
     var animateReturn by BoolPref("animate_return", true)
     var searchContacts by BoolPref("search_contacts", true)

@@ -27,7 +27,7 @@ Each build is signed with the same key, so new versions install over old ones.
 | Clock side | Swipe up | All apps (alphabetical; search finds apps and contacts) |
 | Clock side | Swipe down | Notification shade |
 | Clock side | Swipe right / left, double-tap | Your choice of shortcut (default: Phone / Contacts) |
-| Clock side | Hold | Settings |
+| Clock side | Hold | Add or remove a widget, or open settings |
 | Clock / date | Tap | Alarms / calendar |
 
 ## Settings
@@ -61,6 +61,8 @@ Each build is signed with the same key, so new versions install over old ones.
 - **Tablets** (e.g. Samsung Galaxy Tab, with DeX turned off): everything is drawn larger, the list is
   narrower, and a **favourites bar** of app icons sits along the bottom of the clock side (your pins first,
   then your most-used apps), like a desktop taskbar. It can be turned on or off on phones too (Settings → Home screen).
+- **Widgets**: hold an empty part of the clock side → **Add a widget** to put any widget (weather, calendar,
+  clock…) under the date. Android asks once to allow AppPilot to create widgets. **Remove a widget** in the same menu.
 - **Backup / restore**: save all settings, pins and hidden apps to a file and load them again
   (handy for a new phone).
 

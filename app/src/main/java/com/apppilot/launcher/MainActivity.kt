@@ -55,6 +55,9 @@ class MainActivity : Activity() {
     private lateinit var favourites: FavouritesBar
     /** Bottom of the clock side: gesture hints above the favourites bar. */
     private lateinit var leftBottom: LinearLayout
+    /** Widgets the user added, under the date on the clock side. */
+    private lateinit var widgetArea: LinearLayout
+    private lateinit var widgets: Widgets
 
     private var apps: List<AppEntry> = emptyList()
     private var insetTop = 0
@@ -105,6 +108,7 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         prefs = Prefs(this)
         repo = AppRepository(this, prefs)
+        widgets = Widgets(this, prefs) { bindWidgets(); updateFeedHeight() }
         setupWindow()
         buildUi()
 
@@ -215,6 +219,10 @@ class MainActivity : Activity() {
             addView(homeBanner, bannerParams())
             addView(usageBanner, bannerParams())
             addView(notifBanner, bannerParams())
+            widgetArea = LinearLayout(this@MainActivity).apply { orientation = LinearLayout.VERTICAL; visibility = View.GONE }
+            addView(widgetArea, LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { marginEnd = dpi(8) })
         }
         hint = TextView(this).apply {
             textSize = 12f
@@ -246,7 +254,9 @@ class MainActivity : Activity() {
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT,
                 Gravity.BOTTOM or Gravity.START))
         }
-        leftPanel.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> leftPanel.post { updateFeedHeight() } }
+        leftPanel.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            leftPanel.post { bindWidgets(); updateFeedHeight() }
+        }
         setupLeftGestures()
         setupLeftAccessibility()
 
@@ -353,7 +363,7 @@ class MainActivity : Activity() {
 
             override fun onLongPress(e: MotionEvent) {
                 leftPanel.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-                openSettings()
+                showHomeMenu()
             }
         })
         leftPanel.setOnTouchListener { _, e -> detector.onTouchEvent(e) }
@@ -481,6 +491,7 @@ class MainActivity : Activity() {
         }
         placeFeed()
         bindFavourites()
+        bindWidgets()
 
         // Arrange [clock side | list], or [list | clock side] in left-handed mode.
         // Only rebuilt when it changes, to avoid a relayout every time you come home.
@@ -510,7 +521,7 @@ class MainActivity : Activity() {
         Shortcuts.hint(this, prefs.shortcutSwipeRight)?.let { lines += "Swipe right · $it" }
         Shortcuts.hint(this, prefs.shortcutSwipeLeft)?.let { lines += "Swipe left · $it" }
         Shortcuts.hint(this, prefs.shortcutDoubleTap)?.let { lines += "Double-tap · $it" }
-        lines += "Hold · settings"
+        lines += "Hold · widgets & settings"
         return lines.joinToString("\n")
     }
 
@@ -712,6 +723,39 @@ class MainActivity : Activity() {
     }
 
     private fun openAllApps() = startActivity(Intent(this, AllAppsActivity::class.java))
+
+    /** Hold on an empty part of the clock side: widgets and settings. */
+    private fun showHomeMenu() {
+        val actions = mutableListOf<Pair<String, () -> Unit>>()
+        actions += "Add a widget" to { widgets.pick() }
+        if (prefs.widgetIds.isNotEmpty()) actions += "Remove a widget" to { widgets.chooseToRemove() }
+        actions += "AppPilot settings" to { openSettings() }
+        AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
+            .setItems(actions.map { it.first }.toTypedArray()) { _, which -> actions[which].second() }
+            .show()
+    }
+
+    private fun bindWidgets() {
+        if (!::widgets.isInitialized) return
+        widgets.bind(widgetArea, leftScale(), prefs.leftText)
+    }
+
+    override fun onStart() {
+        super.onStart()
+        runCatching { widgets.host.startListening() }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        runCatching { widgets.host.stopListening() }
+    }
+
+    @Deprecated("Activity results for adding widgets")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        @Suppress("DEPRECATION")
+        super.onActivityResult(requestCode, resultCode, data)
+        widgets.onResult(requestCode, resultCode)
+    }
 
     private fun openSettings() = startActivity(Intent(this, SettingsActivity::class.java))
 

@@ -131,6 +131,13 @@ Notes:
   otherwise springs back). Tap still opens, long-press still shows the menu, vertical drags still scroll.
   Ongoing notifications that can't be cleared spring back with a message. TalkBack gets a "Dismiss" action.
 
+### Widgets (21 Nov)
+- Hold an empty part of the clock side → menu: **Add a widget / Remove a widget / AppPilot settings**
+  (holding used to open settings directly). Widgets stack under the date, above the notification feed.
+- `Widgets.kt` hosts them (AppWidgetHost id 2048); ids saved in prefs `widgets`. First add asks Android's
+  "Allow AppPilot to create widgets?"; widgets with a settings screen open it before being added.
+- Smoke test grants widget binding, adds a Clock widget through the menu and checks it shows.
+
 ### Choosing which notifications show
 - Long-press a card → **Hide [app] notifications in AppPilot** (use this for system ones like Samsung capture), or
   Settings → Notifications → **Choose which apps show notifications**. Only affects AppPilot, not the phone.
