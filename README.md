@@ -78,33 +78,3 @@ Needs Android Studio, or a JDK 17 and the Android SDK:
 ```
 ./gradlew assembleRelease   # app/build/outputs/apk/release/app-release.apk
 ```
-
----
-
-# ForgeCAD (second app in this repo)
-
-An offline CAD / CAM / 3D-print app for Android, in `forgecad/`. Download **ForgeCAD.apk** from the same
-**latest** release as AppPilot. No account, no ads, no internet permission — projects stay on the phone.
-
-**Design (parametric):** sketches on planes or model faces (line, rectangles, circle, arcs, polygon, slot,
-spline, point), dimensions with maths and named parameters, 13 geometric constraints with a live solver,
-trim / extend / fillet / offset / mirror / project. 3D: extrude, revolve, loft, sweep, holes (counterbore,
-countersink), box/cylinder/sphere/cone/torus/spur gear, fillet, chamfer, shell, draft, offset face, delete
-face, mirror, linear and circular patterns, move/align/scale, split body, combine (join/cut/intersect).
-Editable history with suppress and roll-back, measure, section view, mass properties.
-Geometry kernel: OpenCascade (via replicad) compiled to WebAssembly.
-
-**3D print:** slicer with walls, top/bottom skin, grid/lines/triangles/concentric infill, supports,
-skirt/brim/raft, adaptive layer height, speeds, temperatures, cooling, retraction, layer preview,
-time/filament estimate, G-code export. Lay flat, rotate, scale on the bed.
-
-**CNC:** stock and work origin, tool library, facing, adaptive clearing, raster roughing, pocket, contour
-with tabs and lead-in, 3D parallel/waterline finishing, drilling (holes found automatically), engraving;
-toolpath preview, material-removal simulation, G-code for GRBL, LinuxCNC/Mach or Fanuc-style controllers.
-
-**Files:** import STEP/STP, STL, OBJ, DXF, SVG, G-code (preview); export STEP, STL, OBJ, DXF, SVG, G-code
-and `.forgecad` project backups.
-
-Development: `cd forgecad/web && npm ci && npm run build` puts the web app into the APK's assets;
-`npm run serve` serves it at http://localhost:8123 for testing in a desktop browser, and `npm test` runs the
-end-to-end check (needs Playwright).

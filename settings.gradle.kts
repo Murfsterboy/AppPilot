@@ -14,4 +14,3 @@ dependencyResolutionManagement {
 }
 rootProject.name = "AppPilot"
 include(":app")
-include(":forgecad")

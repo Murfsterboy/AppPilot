@@ -20,43 +20,25 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-          cache-dependency-path: forgecad/web/package-lock.json
-
-      - name: Build ForgeCAD web app
-        working-directory: forgecad/web
-        run: |
-          npm ci
-          npm run build
-
-      - name: Build release APKs
+      - name: Build release APK
         run: |
           chmod +x gradlew
           ./gradlew --no-daemon assembleRelease
           cp app/build/outputs/apk/release/app-release.apk AppPilot.apk
-          cp forgecad/build/outputs/apk/release/forgecad-release.apk ForgeCAD.apk
 
       - uses: actions/upload-artifact@v4
         with:
           name: AppPilot-apk
           path: AppPilot.apk
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: ForgeCAD-apk
-          path: ForgeCAD.apk
-
       - name: Publish "latest" release (easy phone download)
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release delete latest --cleanup-tag --yes || true
-          gh release create latest AppPilot.apk ForgeCAD.apk \
-            --title "Latest builds (AppPilot + ForgeCAD)" \
-            --notes "Built from ${GITHUB_SHA::7} on ${GITHUB_REF_NAME}. Download AppPilot.apk or ForgeCAD.apk on your phone and open it to install." \
+          gh release create latest AppPilot.apk \
+            --title "AppPilot – latest build" \
+            --notes "Built from ${GITHUB_SHA::7} on ${GITHUB_REF_NAME}. Download AppPilot.apk on your phone and open it to install." \
             --prerelease --target "$GITHUB_SHA"
 
   smoke-test:
