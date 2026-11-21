@@ -206,9 +206,18 @@ if ! tap_text "Add a widget"; then
 else
   sleep 2
   shot 05f-widget-picker
-  if tap_text "Clock[^\"]*" || tap_text "Chrome[^\"]*"; then
+  adb shell uiautomator dump /sdcard/ui-picker.xml >/dev/null 2>&1
+  adb pull /sdcard/ui-picker.xml "$OUT/widget-picker.xml" >/dev/null 2>&1 || true
+  echo "widgets offered:"; grep -o 'text="[^"]*"' "$OUT/widget-picker.xml" | head -40
+  adb logcat -c || true
+  # Prefer simple clock widgets (no settings screen of their own).
+  if tap_text "Clock: Digital[^\"]*" || tap_text "Clock: Analog[^\"]*" || tap_text "Clock[^\"]*" || tap_text "Chrome[^\"]*"; then
     sleep 4
-    adb shell input keyevent KEYCODE_BACK >/dev/null 2>&1 || true  # leave a widget settings screen if one opened
+    echo "after choosing: $(resumed)"
+    shot 05f2-after-choosing
+    # Android's "Allow AppPilot to create widgets?" (if the pre-grant didn't apply): allow it.
+    { tap_text "Create" || tap_text "CREATE"; } && { sleep 3; echo "allowed binding; now: $(resumed)"; } || true
+    adb logcat -d -s AppPilotWidgets:V | tail -20
     home
     sleep 2
     shot 05g-widget-added

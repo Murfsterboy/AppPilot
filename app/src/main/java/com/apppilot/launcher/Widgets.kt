@@ -9,6 +9,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.os.Process
+import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
@@ -34,9 +35,11 @@ class Widgets(private val activity: Activity, private val prefs: Prefs, private 
         val valid = mutableListOf<Int>()
         val density = activity.resources.displayMetrics.density
         for (id in ids) {
-            val info = runCatching { manager.getAppWidgetInfo(id) }.getOrNull() ?: continue
+            val info = runCatching { manager.getAppWidgetInfo(id) }.getOrNull()
+            if (info == null) { Log.w(TAG, "widget $id has no provider info; dropping it"); continue }
             valid += id
-            val view = runCatching { host.createView(activity, id, info) }.getOrNull() ?: continue
+            val view = runCatching { host.createView(activity, id, info) }
+                .onFailure { Log.w(TAG, "createView failed for $id", it) }.getOrNull() ?: continue
             // Height: the widget's own minimum, at least 90dp, at most 45% of the screen.
             val screenH = activity.resources.displayMetrics.heightPixels
             val minH = maxOf(info.minHeight, (90 * density).toInt())
@@ -92,6 +95,7 @@ class Widgets(private val activity: Activity, private val prefs: Prefs, private 
         val id = host.allocateAppWidgetId()
         val allowed = runCatching { manager.bindAppWidgetIdIfAllowed(id, info.profile, info.provider, null) }
             .getOrDefault(false)
+        Log.i(TAG, "add ${info.provider.flattenToShortString()} id=$id allowed=$allowed configure=${info.configure}")
         if (allowed) {
             configureOrSave(id, info)
         } else {
@@ -127,6 +131,7 @@ class Widgets(private val activity: Activity, private val prefs: Prefs, private 
     }
 
     private fun save(id: Int) {
+        Log.i(TAG, "saved widget $id")
         prefs.widgetIds = prefs.widgetIds + id
         pendingId = -1
         onChanged()
@@ -136,6 +141,7 @@ class Widgets(private val activity: Activity, private val prefs: Prefs, private 
     fun onResult(requestCode: Int, resultCode: Int): Boolean {
         if (requestCode != REQ_BIND && requestCode != REQ_CONFIGURE) return false
         val id = pendingId
+        Log.i(TAG, "result request=$requestCode code=$resultCode pending=$id")
         if (id == -1) return true
         if (resultCode != Activity.RESULT_OK) {
             host.deleteAppWidgetId(id)
@@ -166,6 +172,7 @@ class Widgets(private val activity: Activity, private val prefs: Prefs, private 
     }
 
     companion object {
+        const val TAG = "AppPilotWidgets"
         const val HOST_ID = 2048
         const val REQ_BIND = 41
         const val REQ_CONFIGURE = 42
