@@ -2,10 +2,6 @@ name: Build APK
 
 on:
   push:
-    paths-ignore:
-      - 'fettle/**'
-      - '.github/workflows/fettle.yml'
-      - '.github/scripts/fettle-smoke-test.sh'
   workflow_dispatch:
 
 permissions:
