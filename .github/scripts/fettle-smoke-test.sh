@@ -12,7 +12,7 @@ texts() { grep -o '\(text\|content-desc\)="[^"]\+"' "screenshots/$1.xml" | head 
 expect() { # name, text: retries while the WebView's accessibility tree catches up
   for try in 1 2 3 4; do
     dump "$1"
-    if grep -q "$2" "screenshots/$1.xml"; then echo "PASS $1: found '$2'"; return; fi
+    if grep -qi "$2" "screenshots/$1.xml"; then echo "PASS $1: found '$2'"; return; fi
     sleep 2
   done
   echo "FAIL $1: '$2' not on screen. Visible text:"; texts "$1"; fail=1
@@ -45,8 +45,8 @@ adb logcat -c
 adb shell am start -n $PKG/.MainActivity >/dev/null; sleep 8
 alive launch; shot 01-first-launch
 expect 01-level-sheet "How confident are you"
-tap_text 02-pick-level "Beginner"
-expect 02-home "What are we fixing today"; shot 02-home
+tap_text 02-pick-level "First time decorating"
+expect 02-sheet-closed "Your level: Beginner"; expect 02-home "What are we fixing today"; shot 02-home
 
 open diagnose; expect 03-diagnose "What can you see"; shot 03-diagnose
 tap_text 03b-pick "Mould &amp; mildew"; expect 03b-quiz "When is it worst"; shot 03b-quiz
