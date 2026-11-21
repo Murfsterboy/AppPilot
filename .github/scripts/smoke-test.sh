@@ -36,7 +36,7 @@ adb install -r AppPilot.apk || { echo "::error::install failed"; exit 1; }
 adb shell appops set $PKG GET_USAGE_STATS allow
 adb shell pm grant $PKG android.permission.READ_CONTACTS || true
 adb shell cmd package set-home-activity "$PKG/.MainActivity"
-adb shell cmd appwidget grantbind --package $PKG || true
+adb shell cmd appwidget grantbind --package $PKG --user 0 || true
 adb shell cmd notification allow_listener "$PKG/$PKG.NotificationService" || true
 adb shell settings put system screen_off_timeout 1800000
 
@@ -211,12 +211,18 @@ else
   echo "widgets offered:"; grep -o 'text="[^"]*"' "$OUT/widget-picker.xml" | head -40
   adb logcat -c || true
   # Prefer simple clock widgets (no settings screen of their own).
-  if tap_text "Clock: Digital[^\"]*" || tap_text "Clock: Analog[^\"]*" || tap_text "Clock[^\"]*" || tap_text "Chrome[^\"]*"; then
+  if tap_text "Clock: Analog" || tap_text "Chrome: Chrome search" || tap_text "Clock[^\"]*"; then
     sleep 4
     echo "after choosing: $(resumed)"
     shot 05f2-after-choosing
     # Android's "Allow AppPilot to create widgets?" (if the pre-grant didn't apply): allow it.
     { tap_text "Create" || tap_text "CREATE"; } && { sleep 3; echo "allowed binding; now: $(resumed)"; } || true
+    # If the widget opened its own settings screen, accept it so the widget is added.
+    if ! resumed | grep -q "$PKG"; then
+      tap_text "Done" || tap_text "DONE" || tap_text "OK" || tap_text "Save" || true
+      sleep 2
+      echo "after widget settings: $(resumed)"
+    fi
     adb logcat -d -s AppPilotWidgets:V | tail -20
     home
     sleep 2
