@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Fettle</string>
+    <string name="add_photo">Add a photo of your wall</string>
+    <string name="share_list">Share shopping list</string>
+    <string name="no_tts">Read-aloud isn\'t available on this phone</string>
+    <string name="no_browser">No app found to open this link</string>
+    <string name="no_share">No app found to share with</string>
+    <string name="channel_timers">Drying timers</string>
+    <string name="timer_done_title">Ready: %1$s</string>
+    <string name="timer_done_text">Time for the next step. Tap to open your jobs.</string>
+</resources>

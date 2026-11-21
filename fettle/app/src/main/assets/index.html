@@ -1,0 +1,802 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Fettle</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>@font-face{font-family:'Bricolage Grotesque';src:url(fonts/bricolage.woff2) format('woff2');font-weight:200 800;font-display:swap}@font-face{font-family:Inter;src:url(fonts/inter.woff2) format('woff2');font-weight:100 900;font-display:swap}</style>
+<style>
+/* Layout: single phone-width column app, sticky top bar, fixed bottom tab bar; widens to a centred 480px card on desktop */
+:root{
+  --bg:#F3F2EE; --surface:#FFFFFF; --sunk:#E9E7E1; --line:#E0DDD5;
+  --ink:#1A2326; --muted:#566065; --teal:#0F5C55; --teal-soft:#E3F0EE; --on-teal:#FFFFFF;
+  --tape:#F5C518; --on-tape:#1A2326; --tape-soft:#FFF4C7;
+  --warn:#9A2C14; --warn-soft:#FBE7E2; --dark:#1A2326; --on-dark:#FFFFFF; --on-dark-muted:#C3CBCE;
+  --display:'Bricolage Grotesque', 'Segoe UI', system-ui, sans-serif;
+  --body:Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#111819; --surface:#1A2326; --sunk:#232E31; --line:#2E3A3E;
+  --ink:#ECEFEF; --muted:#A3AEB1; --teal:#5FB8AD; --teal-soft:#183331; --on-teal:#0B1415;
+  --tape:#F5C518; --on-tape:#1A2326; --tape-soft:#3A3315;
+  --warn:#F2957F; --warn-soft:#3A1F19; --dark:#0B1112; --on-dark:#ECEFEF; --on-dark-muted:#A3AEB1; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#111819; --surface:#1A2326; --sunk:#232E31; --line:#2E3A3E;
+  --ink:#ECEFEF; --muted:#A3AEB1; --teal:#5FB8AD; --teal-soft:#183331; --on-teal:#0B1415;
+  --tape:#F5C518; --on-tape:#1A2326; --tape-soft:#3A3315;
+  --warn:#F2957F; --warn-soft:#3A1F19; --dark:#0B1112; --on-dark:#ECEFEF; --on-dark-muted:#A3AEB1; color-scheme:dark}
+*{box-sizing:border-box}
+svg{stroke:currentColor}
+html,body{background:var(--bg);color:var(--ink)}
+body{font-family:var(--body);font-size:15px;line-height:1.5}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+a{color:var(--teal)}
+:focus-visible{outline:3px solid var(--tape);outline-offset:2px}
+.app{max-width:480px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;padding-bottom:calc(84px + env(safe-area-inset-bottom,0px))}
+.wrap{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);display:flex;align-items:center;gap:10px;padding-block:12px}
+.top h1,.top .ttl{margin:0;font-family:var(--display);font-weight:700;font-size:20px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.logo{display:flex;align-items:center;gap:8px;flex:1;text-decoration:none;color:var(--ink)}
+.logo b{font-family:var(--display);font-weight:800;font-size:24px;letter-spacing:-.5px}
+.mark{width:32px;height:32px;border-radius:8px;background:var(--tape);display:grid;place-items:center}
+.icon-btn{width:44px;height:44px;border-radius:22px;border:1px solid var(--line);background:var(--surface);display:grid;place-items:center;flex:none}
+.icon-btn svg{stroke:var(--ink)}
+main{display:flex;flex-direction:column;gap:20px;padding-block:4px 24px}
+h2{margin:0;font-family:var(--display);font-weight:700;font-size:20px;text-wrap:balance}
+.h1{margin:0;font-family:var(--display);font-weight:700;font-size:30px;line-height:1.1;letter-spacing:-.6px;text-wrap:balance}
+.eyebrow{font-size:12px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--muted)}
+.muted{color:var(--muted)}
+.row{display:flex;align-items:center;gap:10px}
+.between{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.stack{display:flex;flex-direction:column;gap:10px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.hero{background:var(--teal);color:var(--on-teal);border-radius:20px;padding:20px;display:flex;flex-direction:column;gap:14px}
+.hero p{margin:0;opacity:.9}
+.hero h2{font-size:24px;line-height:1.15}
+.dark{background:var(--dark);color:var(--on-dark);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:10px}
+.dark .sub{color:var(--on-dark-muted)}
+.tag{display:inline-flex;align-items:center;font-size:12px;font-weight:700;padding:3px 8px;border-radius:4px;background:var(--sunk);color:var(--ink);white-space:nowrap}
+.tag.tape{background:var(--tape);color:var(--on-tape)}
+.tag.teal{background:var(--teal-soft);color:var(--teal)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:0 18px;border-radius:12px;border:none;font-weight:700;font-size:15px;text-decoration:none;text-align:center}
+.btn.primary{background:var(--ink);color:var(--bg)}
+.btn.tape{background:var(--tape);color:var(--on-tape)}
+.btn.ghost{background:transparent;border:1.5px solid var(--line);color:var(--ink)}
+.btn.teal{background:var(--teal);color:var(--on-teal)}
+.btn.block{width:100%}
+.btn.sm{min-height:40px;padding:0 14px;font-size:14px;border-radius:10px}
+.hero .btn.ghost{border-color:rgba(255,255,255,.5);color:var(--on-teal)}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{min-height:40px;padding:0 14px;border-radius:20px;border:1.5px solid var(--line);background:var(--surface);font-weight:600;font-size:14px}
+.chip[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:6px;text-align:left;min-height:100px;color:var(--ink);text-decoration:none}
+.tile .num{width:32px;height:32px;border-radius:8px;display:grid;place-items:center;font-weight:700;font-size:13px;color:#1A2326}
+.tile b{font-size:15px;line-height:1.25}
+.tile small{color:var(--muted);font-size:13px}
+.bar{height:6px;border-radius:3px;background:var(--sunk);overflow:hidden}
+.bar>i{display:block;height:100%;background:var(--teal);border-radius:3px}
+.tip{background:var(--tape-soft);border-radius:14px;padding:14px 16px;display:flex;gap:12px}
+.tip svg{flex:none;stroke:var(--ink)}
+.warnbox{background:var(--warn-soft);border-radius:14px;padding:14px 16px;display:flex;gap:10px}
+.warnbox svg{flex:none;stroke:var(--warn);margin-top:2px}
+.okbox{background:var(--teal-soft);border-radius:14px;padding:14px 16px;color:var(--ink)}
+.okbox .eyebrow{color:var(--teal)}
+.photo{position:relative;border-radius:18px;aspect-ratio:16/10;max-width:100%;background-color:var(--sunk);background-image:repeating-linear-gradient(135deg,rgba(127,127,127,.09) 0 10px,transparent 10px 20px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:16px;text-align:center;overflow:hidden}
+.photo svg{stroke:var(--muted)}
+.photo span{font-size:13px;color:var(--muted);max-width:280px}
+.photo img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.facts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.fact{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 6px;text-align:center;display:flex;flex-direction:column}
+.fact small{font-size:12px;color:var(--muted)}
+.fact b{font-size:14px}
+.check{display:flex;align-items:center;gap:12px;min-height:44px}
+.check input{width:22px;height:22px;accent-color:var(--teal);margin:0;flex:none}
+.check span{flex:1;min-width:0}
+.check.done span{color:var(--muted);text-decoration:line-through}
+.steplist{display:flex;flex-direction:column}
+.steplist button{display:flex;align-items:center;gap:12px;padding:10px 0;border:none;border-bottom:1px solid var(--line);background:none;text-align:left;width:100%;min-height:48px}
+.dot{width:28px;height:28px;border-radius:14px;background:var(--ink);color:var(--bg);font-size:13px;font-weight:700;display:grid;place-items:center;flex:none}
+.dot.done{background:var(--teal);color:var(--on-teal)}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;background:var(--sunk);border-radius:12px}
+.seg button{min-height:40px;border-radius:9px;border:none;background:transparent;font-weight:600;font-size:14px}
+.seg button[aria-pressed="true"]{background:var(--surface);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+ol.instr{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:12px;counter-reset:s}
+ol.instr li{display:flex;gap:12px;font-size:16px;line-height:1.5;counter-increment:s}
+ol.instr li::before{content:counter(s);width:26px;height:26px;border-radius:13px;background:var(--tape);color:var(--on-tape);font-weight:700;font-size:13px;display:grid;place-items:center;flex:none;margin-top:1px}
+.progress{display:flex;gap:4px}
+.progress i{flex:1;height:5px;border-radius:3px;background:var(--line)}
+.progress i.on{background:var(--teal)}
+.progress i.cur{background:var(--ink)}
+.stepfoot{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--surface);border-top:1px solid var(--line);padding-top:12px;padding-bottom:calc(12px + env(safe-area-inset-bottom,0px))}
+.stepfoot .in{max-width:480px;margin:0 auto;display:flex;gap:10px}
+.tabs{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
+.tabs .in{max-width:480px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr)}
+.tabs a{display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 0 12px;text-decoration:none;color:var(--muted);font-size:12px;font-weight:500;min-height:56px}
+.tabs a svg{stroke:currentColor}
+.tabs a[aria-current="page"]{color:var(--ink);font-weight:700}
+.tabs a[aria-current="page"] svg{stroke:var(--teal)}
+.prod{display:flex;gap:14px}
+.tin{width:64px;height:84px;border-radius:10px;flex:none;background:var(--sunk);display:grid;place-items:center}
+.tin svg{stroke:var(--muted)}
+.prod .body{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
+.timer{display:flex;align-items:center;gap:12px}
+.timer .big{font-family:var(--display);font-weight:700;font-size:26px;font-variant-numeric:tabular-nums}
+.sheet{position:fixed;inset:0;z-index:20;background:rgba(10,15,16,.55);display:flex;align-items:flex-end;justify-content:center}
+.sheet .panel{background:var(--bg);width:100%;max-width:480px;border-radius:24px 24px 0 0;padding-top:20px;padding-bottom:calc(24px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:14px;max-height:90vh;overflow:auto}
+.opt{display:flex;align-items:center;gap:12px;padding:14px;border-radius:14px;border:1.5px solid var(--line);background:var(--surface);text-align:left;width:100%}
+.opt[aria-pressed="true"]{border-color:var(--teal);background:var(--teal-soft)}
+.opt .t{display:flex;flex-direction:column;flex:1;min-width:0}
+.opt .t b{font-size:15px}
+.opt .t small{font-size:13px;color:var(--muted)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(96px + env(safe-area-inset-bottom,0px));z-index:30;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:600;font-size:14px;max-width:calc(100% - 32px)}
+.badge{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 12px;border-radius:18px;border:1.5px solid var(--line);font-size:14px;font-weight:600;color:var(--muted)}
+.badge.on{border-color:var(--teal);background:var(--teal-soft);color:var(--teal)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.search{display:flex;align-items:center;gap:10px;min-height:48px;padding:0 14px;border-radius:12px;background:var(--surface);border:1px solid var(--line)}
+.search input{flex:1;border:none;outline:none;background:transparent;font-size:15px;min-width:0}
+.search svg{stroke:var(--muted)}
+@media (prefers-reduced-motion: no-preference){main{animation:in .18s ease-out}@keyframes in{from{opacity:.4;transform:translateY(4px)}to{opacity:1;transform:none}}}
+</style>
+</head>
+<body>
+<div class="app" id="app"></div>
+<div id="layer"></div>
+
+<script>
+(function(){
+const N = window.FettleNative || null;
+// ---------- icons ----------
+const I = {
+  back:'<path d="m15 18-6-6 6-6"/>', close:'<path d="M6 6l12 12M18 6 6 18"/>',
+  home:'<path d="M3 11 12 4l9 7"/><path d="M5 10v10h14V10"/>',
+  scan:'<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',
+  tin:'<path d="M5 6h14v13a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2z"/><path d="M5 6c0-1.7 3.1-3 7-3s7 1.3 7 3"/><path d="M5 10h14"/>',
+  pin:'<path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/>',
+  user:'<circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/>',
+  bulb:'<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.7.7 1 1.5 1 2.5h6c0-1 .3-1.8 1-2.5A6 6 0 0 0 12 3z"/>',
+  warn:'<path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17h.01"/>',
+  no:'<circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/>',
+  clock:'<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M9 2h6"/>',
+  camera:'<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',
+  arrow:'<path d="M5 12h14M13 6l6 6-6 6"/>', search:'<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+  check:'<path d="m5 12 5 5 9-10"/>', list:'<path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/>',
+  ext:'<path d="M14 4h6v6M20 4l-9 9"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>',
+  copy:'<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/>',
+  sound:'<path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12"/>',
+  logo:'<rect x="3" y="3" width="14" height="6" rx="1.5"/><path d="M17 6h3v5h-8v3"/><rect x="10" y="14" width="4" height="7" rx="1"/>'
+};
+const ic = (n, s=20, w=2) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${I[n]}</svg>`;
+const esc = (s) => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+// ---------- content ----------
+const P = {
+  zmk:{name:'Zinsser Mould Killer & Remover',type:'Fungicidal wash',use:'Kills mould and mildew on walls and ceilings before you decorate.',tags:['Step 1 of mould system','Ready to use'],for:['mould']},
+  bin:{name:'Zinsser B-I-N',type:'Shellac primer-sealer',use:'Blocks water marks, smoke, nicotine, marker and mould stains so they don’t bleed through emulsion. Dries fast.',tags:['Stain block','Clean brushes with meths'],for:['mould','stains','damp']},
+  pw:{name:'Zinsser Perma-White Interior',type:'Mould-resistant paint',use:'Self-priming topcoat for kitchens, bathrooms and rooms prone to condensation.',tags:['Topcoat','Water-based'],for:['mould']},
+  gardz:{name:'Zinsser Gardz',type:'Problem-surface sealer',use:'Seals new plaster, chalky or powdery walls, torn plasterboard paper and patchy repairs so paint goes on evenly.',tags:['Sealer','Water-based'],for:['newplaster','flaking','plaster']},
+  cs:{name:'Zinsser Cover Stain',type:'Oil-based primer-sealer',use:'Heavy-duty stain blocker and bonding primer for awkward or glossy surfaces.',tags:['Stain block','Ventilate well'],for:['stains','damp']},
+  mist:{name:'Trade/contract matt emulsion',type:'Mist coat paint',use:'Non-vinyl matt that lets new plaster breathe. Thin it for the first coat as the tin directs.',tags:['New plaster','Breathable'],for:['newplaster']},
+  onecoat:{name:'One-coat patching plaster',type:'Plaster',use:'Fills deeper holes where plaster has been cut back. Build up in layers to the depth on the bag.',tags:['Repairs','Mix with water'],for:['plaster']},
+  bond:{name:'Plaster bonding primer',type:'Primer',use:'Controls suction and helps new plaster grip old backgrounds. Use the one your plaster maker recommends.',tags:['Repairs'],for:['plaster']},
+  finish:{name:'Multi-finish plaster',type:'Finishing plaster',use:'Thin final coat for a smooth, paintable surface over patches.',tags:['Repairs','Pro level'],for:['plaster','smooth']},
+  lwfill:{name:'Lightweight ready-mixed filler',type:'Filler',use:'For holes and dents. No shrinkage in deep fills, easy to sand.',tags:['Holes','Ready to use'],for:['cracks','smooth','plaster']},
+  flexfill:{name:'Flexible crack filler',type:'Filler',use:'Stays slightly flexible so cracks that open and close with the seasons don’t reappear.',tags:['Cracks'],for:['cracks']},
+  finefill:{name:'Fine surface filler',type:'Filler',use:'For shallow scratches and skimming over small imperfections. Sands glass-smooth.',tags:['Finishing'],for:['smooth','cracks','flaking']},
+  caulk:{name:'Decorators’ caulk',type:'Flexible sealant',use:'Fills gaps at corners, skirting and around frames. Paintable. Not for flat wall surfaces.',tags:['Joints','Paintable'],for:['smooth','newplaster']},
+  sugar:{name:'Sugar soap',type:'Cleaner',use:'Removes grease, nicotine and grime so primer and paint stick. Rinse after.',tags:['Prep'],for:['stains','flaking','smooth']},
+  stab:{name:'Stabilising solution',type:'Sealer',use:'Binds chalky, dusty or powdery surfaces before painting.',tags:['Powdery walls'],for:['flaking']},
+  mineral:{name:'Breathable mineral or lime paint',type:'Breathable paint',use:'For older solid walls that need to let moisture out. Avoid vinyl paints on these.',tags:['Old houses','Breathable'],for:['damp']},
+  lead:{name:'Lead paint test kit',type:'Safety',use:'Quick swab test for paint in homes built before the 1960s.',tags:['Safety'],for:['flaking']}
+};
+
+const G = {
+mould:{cat:'mould',title:'Treat mould on walls and stop it coming back',short:'Mould & mildew',level:'Easy',time:'2–3 h',dry:'1–2 days',cost:'££',skill:'Mould treatment',
+ cause:'Mould needs moisture. If it’s condensation, improve ventilation. If it’s a leak, rising or penetrating damp, fix that before you decorate or the mould will come back.',
+ safety:['Gloves','Goggles','FFP3 mask','Windows open'],
+ kit:[['zmk'],['bin'],['pw'],'Disposable cloths','Heavy-duty bin bags','Dust sheets & masking tape','Synthetic brush and short-pile roller','Methylated spirits (cleans shellac brushes)'],
+ steps:[
+  {t:'Find and fix the moisture',shot:'Condensation beading on a cold window reveal next to mould spots',
+   b:['Look at where the mould is. Corners of outside walls, window reveals, behind furniture and bathrooms usually mean condensation.','A patch that gets worse after rain points to penetrating damp. A tide mark low on a ground-floor wall points to rising damp.','Fix leaks and damp before you treat the mould. For condensation, carry on: step 8 covers ventilation.'],
+   p:['Map the affected areas and note the orientation of the walls. Cold north-facing external walls and thermal bridges at lintels are classic.','Check trickle vents, extractor run-on, and whether furniture is tight to external walls.','A pin meter reads high on salts and foil-backed surfaces: compare readings against a known-dry area, not absolute numbers.'],
+   mistake:'Painting over mould without fixing the moisture. It’ll be back within months.'},
+  {t:'Protect the room and yourself',shot:'Gloves, goggles and an FFP3 mask laid out on a dust sheet',
+   b:['Open the windows and close the door to the rest of the house.','Put on gloves, goggles and an FFP3 mask.','Move furniture away and lay a dust sheet under the wall.'],
+   p:['Mask adjacent surfaces and sockets. Bag soft furnishings that have mould on them separately.','Anyone with asthma or a weak immune system should stay out while you work.']},
+  {t:'Kill the mould. Wet it, never dry-brush it.',shot:'Spraying a mouldy corner from about 20 cm away',timer:10,timerLabel:'Mould wash contact time',
+   b:['Shake the mould killer and spray until the area looks damp, not dripping.','Spray about 30 cm past the mould you can see. Spores spread further than the spots.','Leave it for the time on the label. Set the timer below to match.'],
+   p:['On large areas use a pump sprayer and work top-down in 1 m² sections.','Keep to the label contact time and don’t dilute unless the label allows it.','Mould in silicone or grout usually means replacing the sealant, not treating it.'],
+   mistake:'Sanding or brushing mould off first. It throws spores into the air. Always treat it wet.'},
+  {t:'Wipe off and bag the waste',shot:'Folding a cloth to a clean face while wiping down the treated wall',
+   b:['Wipe the area with a disposable cloth. Fold it to a clean face after each wipe.','Put used cloths straight into a bin bag, tie it and take it outside.','If the label says to rinse, wipe again with clean water.'],
+   p:['Heavy growth often needs a second application before wiping.','Never rinse cloths in a bucket and reuse them: you’re spreading spores.']},
+  {t:'Let the wall dry right out',shot:'A dehumidifier running in a room with the window open',timer:1440,timerLabel:'Wall drying',
+   b:['Leave the wall to dry fully. Keep the room ventilated.','A dehumidifier speeds things up.','Check the next day: if spots come back, repeat steps 3 and 4.'],
+   p:['Pencil the date and treated area on the wall edge, then check for regrowth before priming.','Don’t prime over a wall that still feels cold and damp to the back of your hand.']},
+  {t:'Spot-prime stains with a stain blocker',shot:'Brushing white shellac primer over a faint grey stain',timer:45,timerLabel:'B-I-N before topcoat',
+   b:['If grey or brown marks are left, brush a thin coat of B-I-N over them.','Keep the window open: it has a strong smell.','Clean the brush with methylated spirits, not water.'],
+   p:['Feather the edges so the primed patch doesn’t show through the topcoat.','B-I-N skins quickly. Lay it on and leave it; don’t keep brushing.','Two thin coats beat one thick one on dark stains.']},
+  {t:'Two coats of mould-resistant paint',shot:'Rolling Perma-White onto a primed wall, roller in a W pattern',timer:240,timerLabel:'Recoat time (check tin)',
+   b:['Cut in around the edges with a brush, then roll the rest.','Let the first coat dry for the time on the tin, then apply a second.','Two coats give the best protection.'],
+   p:['Keep a wet edge and lay off in one direction for an even sheen.','On ceilings in bathrooms, do the ceiling first, then the walls.']},
+  {t:'Keep it away: ventilation habits',shot:'Bathroom extractor fan running with the door closed after a shower',
+   b:['Run the extractor or open a window during and after showers and cooking.','Dry clothes outside or in a ventilated room.','Leave a gap between furniture and outside walls.','Keep the heating at a steady low level in cold spells.'],
+   p:['A cheap hygrometer helps. Aim to keep relative humidity roughly between 40% and 60%.','Upgrade to an extractor with humidity-sensing overrun in problem bathrooms.']}
+ ]},
+plaster:{cat:'plaster',title:'Repair loose or blown plaster',short:'Loose or blown plaster',level:'Medium',time:'3–5 h',dry:'2–7 days',cost:'££',skill:'Patch plastering',
+ cause:'Blown plaster is often caused by damp, vibration or old age. If the wall is damp, sort that first or the new plaster will fail too.',
+ safety:['Goggles','Dust mask','Gloves','Cable detector'],
+ kit:[['bond'],['onecoat'],['finish'],['lwfill'],'Club hammer and bolster chisel','Plastering trowel and hawk','Bucket, mixing paddle or stick','Straight edge (spirit level)','Dust sheets'],
+ steps:[
+  {t:'Find how far it goes',shot:'Tapping a wall with a screwdriver handle and pencilling round the hollow area',
+   b:['Tap the wall gently with your knuckles or a screwdriver handle.','Solid plaster sounds dull. Blown plaster sounds hollow.','Draw a pencil line around the hollow area.'],
+   p:['Check whether it’s lime or gypsum. Pre-1920s houses often have lime plaster and need lime to repair.','Look for the cause: damp, failed lath, or movement around a lintel.']},
+  {t:'Stay safe before you hit anything',shot:'Using a cable and pipe detector on the wall before chiselling',
+   b:['Run a cable and pipe detector over the area.','Cables usually run straight up or down from sockets and switches. Don’t chisel in those lines.','Put on goggles, gloves and a dust mask, and sheet the floor.'],
+   p:['Turn off the circuit if you’re working near sockets.','Textured coatings applied before 2000 can contain asbestos. Get them tested before disturbing them.'],
+   mistake:'Skipping the detector. Chiselling into a cable is dangerous and expensive.'},
+  {t:'Cut back to sound edges',shot:'Holding a bolster at an angle to cut back loose plaster to a firm edge',
+   b:['Hold the bolster at a low angle and tap with the club hammer.','Remove all the loose plaster until the edges feel firm.','Aim for neat, straight edges. It makes the patch easier to blend.'],
+   p:['Slightly undercut the edges so the new plaster locks in.','Rake out loose mortar joints and brush the background clean.']},
+  {t:'Clean and prime the hole',shot:'Brushing bonding primer onto exposed brickwork',
+   b:['Brush away all the dust.','Apply the bonding primer your plaster maker recommends and let it go tacky.','On brick, a light spray of water also stops the plaster drying too fast.'],
+   p:['Gypsum plaster makers generally advise against PVA under their products: use their bonding agent.','High-suction backgrounds can need two coats of primer.']},
+  {t:'Fill in layers',shot:'Pressing one-coat plaster into the hole and scratching the surface',timer:60,timerLabel:'Layer firming up',
+   b:['Mix the plaster to a thick, creamy paste with no lumps.','Press it firmly into the hole with the trowel. Don’t go thicker than the bag says per layer.','Scratch the surface of each layer so the next one grips. Stop about 2 mm below the wall surface.'],
+   p:['Rule off with a straight edge across the surrounding wall to keep it flat.','For a small patch, ready-mixed lightweight filler is quicker and fine.']},
+  {t:'Finish it flat and smooth',shot:'Trowelling a thin finishing coat flush with the wall',
+   b:['Apply a thin finishing coat over the patch, slightly overlapping the old plaster.','Smooth it with the trowel held almost flat.','As it firms up, go over it again with a clean, damp trowel to polish it.'],
+   p:['Two thin coats of finish, the second applied as the first goes off, gives the best surface.','Feather the edges with a damp brush so there’s no ridge.']},
+  {t:'Let it dry, then seal',shot:'A fully dried pale patch next to old painted plaster',timer:4320,timerLabel:'Patch drying',
+   b:['Wait until the patch is evenly pale with no dark spots. This can take several days.','Lightly sand any ridges.','Seal with a mist coat or Gardz before painting.'],
+   p:['Don’t force-dry with heaters: it can crack the patch.','Spot-prime the patch before the full topcoat to avoid a shiny halo.']}
+ ]},
+cracks:{cat:'cracks',title:'Fill cracks and holes so they don’t come back',short:'Cracks & holes',level:'Easy',time:'1–2 h',dry:'Same day',cost:'£',skill:'Crack filling',
+ cause:'Most hairline cracks are from settlement or drying. Cracks wider than about 5 mm, cracks that grow, or diagonal cracks from window corners need a surveyor to look first.',
+ safety:['Goggles','Dust mask'],
+ kit:[['flexfill'],['lwfill'],['finefill'],'Filling knives (narrow and wide)','Scraper','Sanding block, 120 and 180 grit','Damp brush and bucket','Torch'],
+ steps:[
+  {t:'Check the crack is cosmetic',shot:'Measuring a hairline crack against a ruler',
+   b:['Hairline cracks in plaster are normal and easy to fill.','If a crack is wider than about 5 mm, is getting bigger, or doors and windows have started sticking, get a surveyor before filling.'],
+   p:['Pencil the ends of the crack and date it. If it grows past the marks, it’s moving.','Recurring cracks at wall–ceiling joints need flexible filler or caulk, not standard filler.']},
+  {t:'Open up and clean the crack',shot:'Running the corner of a scraper along a crack to widen it into a V',
+   b:['Run the corner of a scraper along the crack to open it slightly.','Pull out any loose bits.','Brush away the dust.'],
+   p:['Undercut the crack so filler keys in rather than sitting on the surface.','Remove old wall plugs by screwing in a screw a few turns and pulling.']},
+  {t:'Dampen the crack',shot:'Wiping a damp brush along an opened crack',
+   b:['Wipe a damp brush along the crack.','This stops the plaster sucking the water out of the filler too fast.'],
+   p:['On very dry or powdery plaster, a coat of diluted primer works better than water.']},
+  {t:'Fill it slightly proud',shot:'Pressing filler into a crack with a filling knife held at an angle',timer:60,timerLabel:'Filler drying (check tub)',
+   b:['Press filler into the crack with the knife held at an angle.','Draw the knife across the crack, not along it.','Leave it standing very slightly proud of the wall.','Fill deep holes in layers, letting each one dry.'],
+   p:['Use a wide knife for the final pass to avoid ridges.','Overfill slightly less than you think: less sanding later.']},
+  {t:'Sand it flush',shot:'Sanding a filled crack with a block while a torch shines across the wall',
+   b:['When dry, sand with 120 grit on a block, then 180.','Shine a torch flat along the wall to check it’s flush.','Fill again if you can still see a dip.'],
+   p:['Use a sanding block, never just your fingers, or you’ll dish the filler.','An extracted sander with dust collection keeps the room clean on big jobs.'],
+   mistake:'Painting straight over filler. It soaks up paint and shows as a dull patch.'},
+  {t:'Spot-prime the repairs',shot:'Dabbing thinned emulsion over sanded filler',
+   b:['Brush a coat of slightly thinned emulsion over each repair.','Let it dry, then paint the whole wall.'],
+   p:['Spot-priming stops filler “flashing” (dull patches) in the topcoat.']}
+ ]},
+damp:{cat:'damp',title:'Deal with damp patches before you decorate',short:'Damp patches',level:'Medium',time:'Varies',dry:'Weeks to months',cost:'£–£££',skill:'Damp diagnosis',
+ cause:'Paint can’t fix damp. Find which type it is and fix the source first. Decorating is the last step.',
+ safety:['Gloves','Dust mask'],
+ kit:[['bin'],['cs'],['mineral'],'Stiff dry brush','Torch','Moisture meter (optional)'],
+ steps:[
+  {t:'Work out which type of damp it is',shot:'Side by side: condensation mould, a tide mark low on a wall, a damp patch under a window',
+   b:['Condensation: worse in winter, near windows and in bathrooms, often with mould.','Penetrating damp: appears or grows after rain, usually on an outside wall.','Rising damp: a tide mark up to about 1 m high on ground-floor walls, often with white salts.','Leaks: patches below bathrooms, near pipes or radiators.'],
+   p:['True rising damp is less common than often claimed. Rule out bridged damp-proof courses, high ground levels and leaking pipes first.','Get an independent survey, not one from a company selling the treatment.']},
+  {t:'Fix the source',shot:'Clearing a blocked gutter',
+   b:['Clear blocked gutters and fix leaking downpipes.','Look for cracked render, missing pointing or blocked air bricks.','Make sure soil or paving outside isn’t piled above the damp-proof course.','Get leaking pipes repaired.'],
+   p:['Check for bridging: rendered plinths, raised patios or cavity debris.','On solid walls, cement render and plastic paints can trap moisture. Breathable materials may be the fix.']},
+  {t:'Let the wall dry out',shot:'A moisture meter reading on a wall, compared with a dry wall',timer:10080,timerLabel:'First drying check',
+   b:['Once the source is fixed, give the wall time to dry. Thick solid walls can take months.','Keep the room heated and ventilated.'],
+   p:['Track readings weekly against a dry reference wall. Decorate when they level off.']},
+  {t:'Deal with salts and damaged plaster',shot:'White fluffy salts on plaster being brushed off with a dry brush',
+   b:['Brush white fluffy salts off with a dry brush. Don’t wash them: water brings more out.','If plaster is crumbling or keeps going damp in patches, it needs replacing.'],
+   p:['Salt-contaminated plaster absorbs moisture from the air and will stay damp. Hack it off and re-plaster with a suitable system.']},
+  {t:'Seal water stains',shot:'Priming a brown water stain on a ceiling with stain-block primer',
+   b:['Once dry, cover brown water marks with a stain-block primer like B-I-N or Cover Stain.','Then paint as normal.'],
+   p:['Water stains will bleed through any number of emulsion coats. Always block first.'],
+   mistake:'Painting over a damp patch with emulsion. The stain shows through and the paint blisters.'},
+  {t:'Choose the right paint',shot:'Breathable mineral paint on an old solid stone wall',
+   b:['On older houses with solid walls, use breathable paint so moisture can escape.','On modern walls, a good emulsion is fine once the damp is fixed.'],
+   p:['Vinyl emulsions form a film. Lime or mineral paints suit traditional buildings.']}
+ ]},
+flaking:{cat:'flaking',title:'Fix flaking and peeling paint',short:'Flaking paint',level:'Easy',time:'2–4 h',dry:'1 day',cost:'£',skill:'Surface prep',
+ cause:'Paint flakes because of damp, painting over dust or old distemper, or no primer on new plaster. Find which, or it’ll flake again.',
+ safety:['Dust mask','Goggles','Lead check in pre-1960s homes'],
+ kit:[['lead'],['stab'],['gardz'],['finefill'],['sugar'],'Scraper','Sanding block, 120 grit','Masking tape (for the tape test)'],
+ steps:[
+  {t:'Work out why it’s flaking',shot:'Close-up of paint peeling in sheets from bare plaster',
+   b:['Damp? Check the damp patch guide first.','Paint coming off in sheets with powder behind it often means it was painted onto dust or distemper.','On new plaster, it usually means there was no mist coat.'],
+   p:['Do a tape test: press masking tape on, rip it off. If paint comes away, adhesion is poor across the wall, not just at the flakes.']},
+  {t:'Check for lead in old paint',shot:'Using a lead test swab on old paint',
+   b:['If your home was built before the 1960s, test old paint with a lead test kit before sanding.','If it’s positive, don’t dry sand. Use wet abrasive paper and keep children and pets away.'],
+   p:['Never burn off lead paint. Use chemical strippers or wet methods and an FFP3 mask.']},
+  {t:'Scrape off everything loose',shot:'Scraping flaking paint until the edges stay put',
+   b:['Scrape until all the remaining paint is firmly stuck.','Old distemper can be washed off with warm water and a sponge.'],
+   p:['Hold the scraper at a low angle to avoid gouging the plaster.']},
+  {t:'Smooth the edges',shot:'Sanding the edge of old paint so there’s no step',
+   b:['Sand the edges of the old paint with 120 grit so there’s no hard line.','If a step still shows, skim it with fine surface filler and sand.'],
+   p:['Raking torchlight shows steps you’ll otherwise only spot after the topcoat.']},
+  {t:'Seal powdery surfaces',shot:'Rolling clear stabilising solution onto a chalky wall',timer:180,timerLabel:'Sealer drying',
+   b:['If the wall leaves powder on your hand, seal it with stabilising solution or Gardz.','Let it dry fully.'],
+   p:['Gardz penetrates and binds; one coat usually does it. Check for chalkiness again after drying.']},
+  {t:'Prime and paint',shot:'Painting a repaired wall with even coverage',
+   b:['Spot-prime bare patches, then apply two topcoats.'],
+   p:['Wash the whole wall with sugar soap first so the new paint has a clean surface to grip.']}
+ ]},
+stains:{cat:'stains',title:'Stop stains bleeding through paint',short:'Stains that bleed through',level:'Easy',time:'1–2 h',dry:'Same day',cost:'£',skill:'Stain blocking',
+ cause:'Water marks, smoke, nicotine, marker pen and grease all bleed through emulsion. If it’s a water stain, fix the leak first.',
+ safety:['Gloves','Windows open'],
+ kit:[['sugar'],['bin'],['cs'],'Sponge and bucket','Synthetic brush','Methylated spirits'],
+ steps:[
+  {t:'Identify the stain',shot:'Different stains on a wall: water ring, marker pen, smoke shadow',
+   b:['Water stains: brown rings, often on ceilings.','Smoke and nicotine: yellow-brown film, often near ceilings.','Pen, crayon and grease: local marks.'],
+   p:['Water stains mean a leak. Confirm it’s dry and fixed before priming.']},
+  {t:'Clean the wall',shot:'Washing a wall down with sugar soap and a sponge',timer:60,timerLabel:'Wall drying',
+   b:['Wash with sugar soap and warm water.','Rinse with clean water and let it dry.'],
+   p:['For heavy nicotine, wash twice. The rinse water will look yellow.']},
+  {t:'Prime with a stain blocker',shot:'Brushing B-I-N over a marker pen scribble',timer:45,timerLabel:'Primer before topcoat',
+   b:['Brush or roll B-I-N over the stain and a little beyond.','Let it dry. Add a second coat if the stain still shows.'],
+   p:['For whole-room smoke damage, prime the entire surface rather than patches.'],
+   mistake:'Using extra coats of emulsion instead of primer. The stain will come back through.'},
+  {t:'Paint',shot:'Rolling emulsion over the primed area',
+   b:['Apply two coats of your normal paint.'],
+   p:['Let shellac primers cure as the tin directs before topcoating with heavy coats.']}
+ ]},
+newplaster:{cat:'newplaster',title:'Prepare and paint new plaster',short:'New or bare plaster',level:'Easy',time:'3–4 h',dry:'Days to weeks before',cost:'£',skill:'Mist coats',
+ cause:'New plaster must be fully dry before painting. Painting too soon traps moisture and the paint will peel.',
+ safety:['Dust mask when sanding'],
+ kit:[['mist'],['gardz'],['caulk'],['lwfill'],'Short-pile roller and tray','Fine sandpaper (240 grit)','Bucket for mixing'],
+ steps:[
+  {t:'Wait until it’s fully dry',shot:'Freshly plastered wall drying from dark brown to pale pink',
+   b:['New plaster starts dark and dries to an even pale pink.','Wait until there are no dark patches at all. A skim can take a week or more; thicker plaster takes longer.'],
+   p:['Ventilate, but don’t force-dry with heaters: it can cause cracking and blowing.']},
+  {t:'Remove nibs and splashes',shot:'Running a scraper lightly over a fresh plaster wall',
+   b:['Gently scrape off any lumps or splashes.','Lightly rub down with fine sandpaper, then dust off.'],
+   p:['Don’t over-sand polished plaster. You only want to knock off nibs.']},
+  {t:'Apply a mist coat',shot:'Rolling watered-down emulsion onto bare plaster',timer:240,timerLabel:'Mist coat drying',
+   b:['Mix trade matt emulsion with water as the tin directs for new plaster.','Roll it on evenly. It soaks in fast and looks patchy: that’s normal.'],
+   p:['Avoid vinyl emulsion for mist coats: it can sit on the surface and peel.','Gardz is an alternative sealer if you want to skip the mist coat.'],
+   mistake:'Using undiluted vinyl paint straight on new plaster. It won’t bond and will peel.'},
+  {t:'Fill the bits the mist coat shows',shot:'Torch held flat to the wall showing small dents after the mist coat',
+   b:['The mist coat shows up small dents and lines. Fill them now.','Sand smooth when dry and dab with mist coat paint.'],
+   p:['This is your best chance at a perfect finish. Use a raking light.']},
+  {t:'Caulk the corners and edges',shot:'Running a bead of caulk along a skirting board edge and smoothing with a wet finger',
+   b:['Run a thin bead of decorators’ caulk along internal corners, skirting and frames.','Smooth with a wet finger and wipe off excess.'],
+   p:['Cut the nozzle small. A thin bead looks sharper than a thick one.']},
+  {t:'Topcoat',shot:'Rolling the first full coat of paint',
+   b:['Apply two coats of your chosen emulsion.'],
+   p:['Cut in and roll one wall at a time to keep a wet edge.']}
+ ]},
+smooth:{cat:'smooth',title:'Get walls glass-smooth before painting',short:'Get a glass-smooth finish',level:'Medium',time:'Half a day',dry:'Same day',cost:'£',skill:'Smooth finishing',
+ cause:'Paint shows every flaw. Most of a great finish is prep you do before opening the tin.',
+ safety:['Dust mask','Goggles'],
+ kit:[['lwfill'],['finefill'],['caulk'],['sugar'],'Torch','Pencil','Sanding block or pole sander','120, 180 and 240 grit paper','Vacuum and damp cloths','Medium-pile roller, good brush'],
+ steps:[
+  {t:'Find every flaw with a torch',shot:'A torch held flat against a wall casting shadows from small dents',
+   b:['Hold a torch flat against the wall so the light skims across it.','Every dent and ridge casts a shadow.','Circle each one lightly in pencil.'],
+   p:['Work in a darkened room. This “raking light” is how pros check a wall.']},
+  {t:'Fill dents and scratches',shot:'Filling small dents with fine surface filler using a wide knife',timer:60,timerLabel:'Filler drying',
+   b:['Use lightweight filler for holes, fine surface filler for scratches.','Leave each fill slightly proud.'],
+   p:['Wipe the knife clean between every pass for a crisp finish.']},
+  {t:'Sand smooth',shot:'Using a pole sander on a wall in long, light strokes',
+   b:['Sand repairs with 120 grit, then 180, on a block.','Use light pressure and long strokes.','Check again with the torch.'],
+   p:['An extracted sander with dust collection makes this clean and fast on big areas.']},
+  {t:'Get rid of the dust',shot:'Vacuuming the skirting then wiping the wall with a damp cloth',
+   b:['Vacuum the wall, skirting and floor.','Wipe the wall with a damp cloth and let it dry.'],
+   p:['Dust left on the wall turns into grit in the paint.']},
+  {t:'Caulk the joints',shot:'Smoothing caulk at a wall corner',
+   b:['Caulk gaps at corners, skirting and architraves.','Smooth with a wet finger.'],
+   p:['Let caulk skin over before painting, or it can crack.']},
+  {t:'Paint like a pro',shot:'Rolling paint in a W shape, then laying off top to bottom',timer:240,timerLabel:'Recoat time (check tin)',
+   b:['Spot-prime filled areas first.','Cut in with a brush, then roll in a W shape and fill it in.','Finish each section with light top-to-bottom strokes.','Apply two coats.'],
+   p:['Keep a wet edge and don’t go back over areas that have started to dry.','Lightly de-nib with 240 grit between coats for a really smooth result.'],
+   mistake:'Overloading the roller. It leaves thick edges and drips. Roll off the excess in the tray.'}
+ ]}
+};
+
+const PROBLEMS = [
+  {id:'damp',n:'01',title:'Damp patches',looks:'Dark, cool or tide-marked area, often low down',tint:'#D7E8F2'},
+  {id:'mould',n:'02',title:'Mould & mildew',looks:'Black or grey spots, musty smell, corners and window reveals',tint:'#DCEBDD'},
+  {id:'plaster',n:'03',title:'Loose or blown plaster',looks:'Sounds hollow when tapped, bulging or crumbling',tint:'#F2E2D2'},
+  {id:'cracks',n:'04',title:'Cracks & holes',looks:'Hairline cracks, old wall-plug holes, dents',tint:'#ECE4F2'},
+  {id:'flaking',n:'05',title:'Flaking paint',looks:'Paint lifting in sheets or powdery to touch',tint:'#F6EBC2'},
+  {id:'stains',n:'06',title:'Stains that bleed through',looks:'Water marks, smoke, pen that shows through paint',tint:'#F2D9D9'},
+  {id:'newplaster',n:'07',title:'New or bare plaster',looks:'Freshly plastered or skimmed walls',tint:'#E6E3DC'},
+  {id:'smooth',n:'08',title:'Glass-smooth finish',looks:'The wall is sound, I just want it perfect',tint:'#E9DDD5'}
+];
+
+const QUIZ = {
+  mould:{q:'When is it worst?',opts:[
+    {l:'Winter, near windows, bathroom or kitchen',r:['mould'],note:'Sounds like condensation. Your plan includes ventilation fixes, because paint alone won’t stop it coming back.'},
+    {l:'After rain, on an outside wall',r:['damp','mould'],note:'Sounds like penetrating damp. Fix the leak or defect first, then treat the mould.'},
+    {l:'Low down, with a tide mark',r:['damp','mould'],note:'Could be rising or bridged damp. Get the cause checked first, then treat the mould.'}]},
+  damp:{q:'When is it worst?',opts:[
+    {l:'Winter, near windows, bathroom or kitchen',r:['mould'],note:'Sounds like condensation, which often comes with mould. Better ventilation is the fix.'},
+    {l:'After rain, on an outside wall',r:['damp'],note:'Sounds like penetrating damp. Check gutters, pointing and render.'},
+    {l:'Low down, with a tide mark or white salts',r:['damp'],note:'Could be rising or bridged damp. Rule out the common causes before paying for treatment.'}]},
+  plaster:{q:'What does it feel like?',opts:[
+    {l:'Sounds hollow, but feels dry',r:['plaster'],note:'Classic blown plaster. Cut back to sound edges and patch.'},
+    {l:'Crumbly, damp or with white fluffy salts',r:['damp','plaster'],note:'Damp is the likely cause. Fix it first or the new plaster will fail.'}]},
+  cracks:{q:'How big is it?',opts:[
+    {l:'Hairline, or small holes',r:['cracks'],note:'Cosmetic. A straightforward fill and sand.'},
+    {l:'Wider than about 5 mm, or getting bigger',r:['cracks'],note:'Get a surveyor or structural engineer to look before you fill it.',warn:true}]},
+  flaking:{q:'Is the wall damp?',opts:[
+    {l:'No, it’s dry',r:['flaking'],note:'Likely poor adhesion. Scrape, seal and repaint.'},
+    {l:'Yes, or not sure',r:['damp','flaking'],note:'Check for damp first. Paint won’t stick to a damp wall.'}]}
+};
+
+const STORES = [
+  {name:'Brewers Decorator Centres',kind:'merchant',why:'Specialist primers, trade paints and advice at the counter.'},
+  {name:'Dulux Decorator Centre',kind:'merchant',why:'Trade paints, primers, fillers and pro tools.'},
+  {name:'Johnstone’s Decorating Centre',kind:'merchant',why:'Trade paints, primers and decorating sundries.'},
+  {name:'Crown Decorating Centre',kind:'merchant',why:'Trade paints and specialist coatings.'},
+  {name:'B&Q',kind:'diy',why:'Wide range of fillers, sundries and some Zinsser products. Open late.'},
+  {name:'Wickes',kind:'diy',why:'Plaster, fillers and decorating tools in one trip.'},
+  {name:'Homebase',kind:'diy',why:'Paints, fillers and decorating basics.'},
+  {name:'Screwfix',kind:'trade',why:'Order online and collect from the counter, often within minutes.'},
+  {name:'Toolstation',kind:'trade',why:'Click and collect on filler, caulk, PPE and sundries.'}
+];
+const KIND = {merchant:'Decorators’ merchant',diy:'DIY store',trade:'Trade counter'};
+
+const TIPS = [
+  'Hold a torch flat against the wall. The raking light shows every dent before your paint does.',
+  'Wrap your roller in cling film between coats and it won’t dry out over lunch.',
+  'Draw the filling knife across a crack, not along it, or you’ll drag the filler out.',
+  'Spot-prime filler before the topcoat or it shows as dull patches.',
+  'Clean shellac primer brushes with meths, not water.',
+  'A thin bead of caulk looks sharper than a thick one. Cut the nozzle small.'
+];
+
+// ---------- state ----------
+const KEY = 'fettle-v1';
+const defaults = {level:null, progress:{}, have:{}, list:[], timers:[], skills:[], notify:false, last:null};
+let S = defaults;
+try { const raw = localStorage.getItem(KEY); if (raw) S = Object.assign({}, defaults, JSON.parse(raw)); } catch(e) {}
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch(e) {} };
+let ui = {mode:null, quiz:{problem:null, answer:null}, photo:null, pfilter:'all', sfilter:'all', q:''};
+
+// ---------- helpers ----------
+const route = () => (location.hash || '#home').slice(1);
+const go = (h) => { location.hash = h; };
+const toast = (msg) => {
+  const t = document.createElement('div'); t.className = 'toast'; t.setAttribute('role','status'); t.textContent = msg;
+  document.body.appendChild(t); setTimeout(() => t.remove(), 2200);
+};
+const done = (gid) => S.progress[gid] || [];
+const pct = (gid) => Math.round(done(gid).length / G[gid].steps.length * 100);
+const kitName = (k) => Array.isArray(k) ? P[k[0]].name : k;
+const inList = (name) => S.list.some(i => i.name === name);
+const addToList = (name) => { if (!inList(name)) { S.list.push({name, got:false}); } };
+const fmt = (ms) => {
+  if (ms <= 0) return 'Ready';
+  const s = Math.round(ms/1000), d = Math.floor(s/86400), h = Math.floor(s%86400/3600), m = Math.floor(s%3600/60), sec = s%60;
+  if (d) return d + 'd ' + h + 'h';
+  if (h) return h + 'h ' + String(m).padStart(2,'0') + 'm';
+  return m + ':' + String(sec).padStart(2,'0');
+};
+const levelName = {beginner:'Beginner', improver:'Improver', pro:'Pro'};
+const mapsUrl = (q) => 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(q + ' near me');
+const searchUrl = (q) => 'https://www.google.com/search?q=' + encodeURIComponent(q + ' UK stockists');
+
+const top = (title, back) => `<header class="top wrap">${back ? `<a class="icon-btn" href="#${back}" aria-label="Back">${ic('back',20,2.2)}</a>` : ''}<h1 class="ttl">${title}</h1></header>`;
+const tabs = (cur) => {
+  const t = [['home','Home','home'],['diagnose','Diagnose','scan'],['products','Products','tin'],['stores','Stores','pin'],['projects','My jobs','user']];
+  return `<nav class="tabs" aria-label="Main"><div class="in">${t.map(([h,l,i]) => `<a href="#${h}" ${cur===h?'aria-current="page"':''}>${ic(i,22)}<span>${l}</span></a>`).join('')}</div></nav>`;
+};
+const photo = (caption, src) => `<div class="photo">${src ? `<img src="${src}" alt="Your wall photo">` : `${ic('camera',28)}<span>Photo slot: ${esc(caption)}</span>`}</div>`;
+
+// ---------- views ----------
+function vHome(){
+  const active = Object.keys(G).filter(g => done(g).length && done(g).length < G[g].steps.length);
+  const cont = S.last && G[S.last.g] ? S.last : (active[0] ? {g:active[0], i:done(active[0]).length} : null);
+  const tip = TIPS[new Date().getDate() % TIPS.length];
+  const timer = S.timers.find(t => t.end > Date.now());
+  return `
+  <header class="top wrap"><a class="logo" href="#home" aria-label="Fettle home"><span class="mark">${ic('logo',18,2.2).replace('stroke-width','stroke="#1A2326" stroke-width')}</span><b>Fettle</b></a>
+    <button class="icon-btn" data-act="level" aria-label="Change your level">${ic('user',20)}</button></header>
+  <main class="wrap">
+    <div class="stack">
+      <h1 class="h1">What are we fixing today?</h1>
+      <button class="chip" data-act="level" style="align-self:flex-start">Your level: ${levelName[S.level] || 'Not set'} ▾</button>
+    </div>
+    <section class="hero">
+      <span class="tag tape" style="align-self:flex-start">Wall Doctor</span>
+      <h2>Tell us what’s wrong. Get a prep plan for your wall.</h2>
+      <p>Damp, mould, blown plaster, cracks: we’ll work out the cause, the steps and exactly what to buy.</p>
+      <div class="row" style="flex-wrap:wrap"><a class="btn tape" href="#diagnose">${ic('scan',20)} Diagnose a wall</a></div>
+    </section>
+    ${cont ? `<a class="card" href="#step-${cont.g}-${Math.min(cont.i, G[cont.g].steps.length-1)+1}" style="text-decoration:none;color:inherit">
+      <div class="between"><span class="eyebrow">Carry on</span><span class="muted" style="font-size:13px">${G[cont.g].short}</span></div>
+      <b style="font-size:16px">Step ${Math.min(cont.i, G[cont.g].steps.length-1)+1} of ${G[cont.g].steps.length}: ${G[cont.g].steps[Math.min(cont.i, G[cont.g].steps.length-1)].t}</b>
+      ${timer ? `<span class="muted row" style="font-size:14px;gap:6px">${ic('clock',14)} ${esc(timer.label)}: <span data-timer="${timer.end}">${fmt(timer.end-Date.now())}</span> left</span>` : ''}
+      <div class="bar"><i style="width:${pct(cont.g)}%"></i></div></a>` : ''}
+    <section class="stack">
+      <div class="between"><h2>Walls: prep &amp; repair</h2><span class="muted" style="font-size:13px">8 guides</span></div>
+      <div class="grid2">${PROBLEMS.map(p => `<a class="tile" href="#guide-${p.id}"><span class="num" style="background:${p.tint}">${p.n}</span><b>${p.title}</b><small>${G[p.id].steps.length} steps · ${G[p.id].level}${pct(p.id) ? ' · ' + pct(p.id) + '%' : ''}</small></a>`).join('')}</div>
+    </section>
+    <section class="stack">
+      <h2>Coming next</h2>
+      <div class="dark">
+        <b style="font-size:17px">Woodwork</b>
+        <span class="sub" style="font-size:14px">Strip, treat, repair and paint doors, skirting, frames and windows.</span>
+        <button class="btn tape sm" data-act="notify" style="align-self:flex-start">${S.notify ? ic('check',16,2.6) + ' We’ll tell you' : 'Notify me'}</button>
+      </div>
+    </section>
+    <section class="tip">${ic('bulb',24)}<div class="stack" style="gap:4px"><b style="font-size:14px">Pro trick of the day</b><span style="font-size:14px">${tip}</span></div></section>
+  </main>${tabs('home')}`;
+}
+
+function vDiagnose(){
+  const q = ui.quiz, quiz = q.problem && QUIZ[q.problem];
+  let result = null;
+  if (q.problem) {
+    if (!quiz) result = {r:[q.problem], note:null};
+    else if (q.answer != null) result = quiz.opts[q.answer];
+  }
+  return `${top('Wall Doctor')}
+  <main class="wrap">
+    <section class="stack">
+      ${photo('Take or upload a photo of the problem area', ui.photo)}
+      <label class="btn ghost block" for="photo-in">${ic('camera',20)} ${ui.photo ? 'Change photo' : 'Add a photo of your wall'}</label>
+      <input id="photo-in" type="file" accept="image/*" class="sr">
+      <p class="muted" style="margin:0;font-size:13px">Automatic photo diagnosis is coming in a later version. For now, pick what you can see below.</p>
+    </section>
+    <section class="stack" aria-label="What can you see">
+      <h2>What can you see?</h2>
+      ${PROBLEMS.map(p => `<button class="opt" data-act="pick" data-id="${p.id}" aria-pressed="${q.problem===p.id}"><span class="num" style="width:36px;height:36px;border-radius:9px;background:${p.tint};display:grid;place-items:center;font-weight:700;font-size:13px;color:#1A2326;flex:none">${p.n}</span><span class="t"><b>${p.title}</b><small>${p.looks}</small></span></button>`).join('')}
+    </section>
+    ${quiz ? `<section class="card">
+      <span class="eyebrow">Quick check: find the cause</span>
+      <b style="font-size:16px">${quiz.q}</b>
+      <div class="stack" style="gap:8px">${quiz.opts.map((o,i) => `<button class="opt" data-act="answer" data-i="${i}" aria-pressed="${q.answer===i}"><span class="t"><b>${o.l}</b></span></button>`).join('')}</div>
+    </section>` : ''}
+    ${result ? `<section class="stack" id="plan">
+      ${result.note ? `<div class="${result.warn ? 'warnbox' : 'okbox'}">${result.warn ? ic('warn',20) : ''}<div><span class="eyebrow">Our read</span><div style="font-size:15px;margin-top:2px">${result.note}</div></div></div>` : ''}
+      <h2>Your prep plan</h2>
+      ${result.r.map((g,i) => `<a class="card" href="#guide-${g}" style="text-decoration:none;color:inherit;flex-direction:row;align-items:center"><span class="dot">${i+1}</span><span style="flex:1;min-width:0"><b style="display:block">${G[g].title}</b><small class="muted">${G[g].steps.length} steps · ${G[g].time}</small></span>${ic('arrow',18)}</a>`).join('')}
+    </section>` : ''}
+  </main>${tabs('diagnose')}`;
+}
+
+function vGuide(gid){
+  const g = G[gid]; if (!g) return vHome();
+  const d = done(gid);
+  const missing = g.kit.filter(k => !S.have[gid + '|' + kitName(k)]);
+  const next = Math.min(d.length, g.steps.length - 1) + 1;
+  return `${top(g.short, 'home')}
+  <main class="wrap">
+    ${photo('Before and after of this repair')}
+    <div class="stack" style="gap:6px"><span class="eyebrow" style="color:var(--teal)">Walls · ${g.short}</span><h1 class="h1" style="font-size:27px">${g.title}</h1></div>
+    <div class="facts">${[['Level',g.level],['Hands-on',g.time],['Drying',g.dry],['Cost',g.cost]].map(([k,v]) => `<div class="fact"><small>${k}</small><b>${v}</b></div>`).join('')}</div>
+    <section class="tip">${ic('warn',22)}<div class="stack" style="gap:4px"><b>Before you start</b><span style="font-size:14px">${g.cause}</span></div></section>
+    <section class="stack"><h2>Stay safe</h2><div class="chips">${g.safety.map(s => `<span class="badge">${s}</span>`).join('')}</div></section>
+    <section class="card">
+      <div class="between"><h2>You’ll need</h2><span class="muted" style="font-size:13px">${g.kit.length - missing.length} of ${g.kit.length} got</span></div>
+      <div>${g.kit.map((k,i) => { const n = kitName(k), id = 'kit-' + gid + '-' + i, have = !!S.have[gid + '|' + n];
+        return `<label class="check ${have?'done':''}" for="${id}"><input type="checkbox" id="${id}" data-act="have" data-key="${esc(gid + '|' + n)}" ${have?'checked':''}><span>${esc(n)}</span>${Array.isArray(k) ? '<span class="tag tape">Specialist</span>' : ''}</label>`; }).join('')}</div>
+      <button class="btn tape block" data-act="addmissing" data-g="${gid}" ${missing.length ? '' : 'disabled'}>${missing.length ? 'Add ' + missing.length + ' missing to shopping list' : 'You’ve got everything'}</button>
+    </section>
+    <section class="stack" style="gap:4px">
+      <div class="between" style="margin-bottom:6px"><h2>The ${g.steps.length} steps</h2><span class="muted" style="font-size:13px">${pct(gid)}% done</span></div>
+      <div class="steplist">${g.steps.map((s,i) => `<button data-go="step-${gid}-${i+1}"><span class="dot ${d.includes(i)?'done':''}">${d.includes(i) ? ic('check',14,3).replace('<svg','<svg style="stroke:currentColor"') : i+1}</span><span style="flex:1;font-weight:500">${s.t}</span>${s.timer ? `<span class="muted" style="font-size:12px">${ic('clock',14)}</span>` : ''}</button>`).join('')}</div>
+    </section>
+    <a class="btn primary block" href="#step-${gid}-${next}">${d.length ? 'Continue from step ' + next : 'Start guide'} ${ic('arrow',18,2.4).replace('<svg','<svg style="stroke:currentColor"')}</a>
+  </main>${tabs('')}`;
+}
+
+function vStep(gid, n){
+  const g = G[gid]; if (!g) return vHome();
+  const i = Math.max(0, Math.min(g.steps.length - 1, n - 1)), s = g.steps[i];
+  const mode = ui.mode || (S.level === 'pro' ? 'pro' : 'beginner');
+  const timer = S.timers.find(t => t.id === gid + '-' + i);
+  const isDone = done(gid).includes(i);
+  S.last = {g:gid, i}; save();
+  const tdef = s.timer ? (timer ? `<span class="big" data-timer="${timer.end}">${fmt(timer.end - Date.now())}</span>` : `<span class="big">${fmt(s.timer*60000)}</span>`) : '';
+  return `
+  <header class="top wrap" style="flex-direction:column;align-items:stretch;gap:10px">
+    <div class="row"><a class="icon-btn" href="#guide-${gid}" aria-label="Close and go to guide overview">${ic('close',18,2.4)}</a><span class="ttl" style="text-align:center;font-family:var(--body);font-size:15px;font-weight:600">Step ${i+1} of ${g.steps.length}</span><button class="icon-btn" data-act="speak" aria-label="Read this step aloud">${ic('sound',20)}</button></div>
+    <div class="progress" aria-hidden="true">${g.steps.map((_,k) => `<i class="${k===i?'cur':done(gid).includes(k)?'on':''}"></i>`).join('')}</div>
+  </header>
+  <main class="wrap" style="padding-bottom:96px">
+    ${photo(s.shot)}
+    <h1 class="h1" style="font-size:25px">${s.t}</h1>
+    <div class="seg" role="group" aria-label="Detail level">
+      <button data-act="mode" data-m="beginner" aria-pressed="${mode==='beginner'}">Beginner</button>
+      <button data-act="mode" data-m="pro" aria-pressed="${mode==='pro'}">Pro</button>
+    </div>
+    <ol class="instr" id="instr">${(mode==='pro' ? s.p : s.b).map(t => `<li><span>${t}</span></li>`).join('')}</ol>
+    ${mode==='pro'
+      ? `<section class="dark"><span class="eyebrow" style="color:var(--tape)">Pro note</span><span style="font-size:14px">Switch to Beginner for the plain-English version of this step.</span></section>`
+      : `<section class="okbox"><span class="eyebrow">Want the trade detail?</span><div style="font-size:14px;margin-top:2px">Switch to Pro for faster methods and the checks decorators use.</div></section>`}
+    ${s.mistake ? `<section class="warnbox">${ic('no',20,2.2)}<span style="font-size:14px"><strong>Common mistake:</strong> ${s.mistake}</span></section>` : ''}
+    ${s.timer ? `<section class="card"><div class="timer">${ic('clock',28)}<div style="flex:1;min-width:0"><b style="display:block">${s.timerLabel}</b><small class="muted">Check the time on your product label</small></div>${tdef}</div>
+      <div class="row">${timer ? `<button class="btn ghost sm" data-act="stoptimer" data-id="${gid}-${i}" style="flex:1">Cancel timer</button>` : `<button class="btn teal sm" data-act="starttimer" data-g="${gid}" data-i="${i}" style="flex:1">Start timer</button>`}</div></section>` : ''}
+    <section class="card"><b>Stuck on this step?</b><span class="muted" style="font-size:14px">Photo questions are coming in a later version. For now, check the Pro view or the product label.</span></section>
+  </main>
+  <div class="stepfoot wrap"><div class="in">
+    ${i > 0 ? `<a class="btn ghost" href="#step-${gid}-${i}" style="flex:1">Back</a>` : `<a class="btn ghost" href="#guide-${gid}" style="flex:1">Overview</a>`}
+    <button class="btn primary" data-act="next" data-g="${gid}" data-i="${i}" style="flex:2">${i === g.steps.length-1 ? 'Finish guide' : (isDone ? 'Next step' : 'Done, next step')}</button>
+  </div></div>`;
+}
+
+function vDone(gid){
+  const g = G[gid];
+  return `${top('Guide complete','home')}
+  <main class="wrap">
+    <section class="hero" style="align-items:flex-start">
+      <span class="tag tape">Skill earned</span>
+      <h2>${g.skill}</h2>
+      <p>Nice work. Take an after photo and compare it with where you started.</p>
+    </section>
+    <div class="card"><b>What next?</b>
+      ${gid !== 'smooth' ? `<a class="btn ghost block" href="#guide-smooth">Get the wall glass-smooth</a>` : ''}
+      <a class="btn ghost block" href="#projects">See your skills and jobs</a>
+      <a class="btn primary block" href="#home">Back to home</a></div>
+  </main>${tabs('')}`;
+}
+
+function vProducts(){
+  const f = ui.pfilter, q = ui.q.trim().toLowerCase();
+  const filters = [['all','All'],['mould','Mould'],['stains','Stains'],['damp','Damp'],['plaster','Plaster repair'],['cracks','Cracks'],['newplaster','New plaster'],['flaking','Powdery walls'],['smooth','Smooth finish']];
+  const list = Object.entries(P).filter(([id,p]) => (f==='all' || p.for.includes(f)) && (!q || (p.name + ' ' + p.type + ' ' + p.use).toLowerCase().includes(q)));
+  return `${top('Specialist paints & primers')}
+  <main class="wrap">
+    <label class="search" for="psearch">${ic('search',18)}<span class="sr">Search products</span><input id="psearch" type="search" placeholder="Search a product or a problem" value="${esc(ui.q)}" data-act="search"></label>
+    <div class="chips">${filters.map(([id,l]) => `<button class="chip" data-act="pfilter" data-f="${id}" aria-pressed="${f===id}">${l}</button>`).join('')}</div>
+    ${(f==='all' || f==='mould') && !q ? `<section class="dark">
+      <span class="eyebrow" style="color:var(--tape)">The mould system</span>
+      <b style="font-family:var(--display);font-size:20px;line-height:1.2">Three products, in this order. Skip one and it may come back.</b>
+      <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">${[['Kill','zmk'],['Block','bin'],['Protect','pw']].map(([v,id],i) => `<div style="background:rgba(255,255,255,.07);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:4px"><span class="dot" style="background:var(--tape);color:var(--on-tape);width:24px;height:24px;font-size:12px">${i+1}</span><b style="font-size:14px">${v}</b><span class="sub" style="font-size:12px;line-height:1.3">${P[id].name.replace('Zinsser ','')}</span></div>`).join('')}</div>
+      <button class="btn tape" data-act="addsys">Add the system to my list</button></section>` : ''}
+    ${list.length ? list.map(([id,p]) => `<article class="card prod"><div class="tin">${ic('tin',26)}</div><div class="body">
+      <span class="muted" style="font-size:12px;font-weight:600">${p.type}</span><b style="font-size:16px;line-height:1.25">${p.name}</b>
+      <span style="font-size:14px">${p.use}</span>
+      <div class="chips" style="gap:6px">${p.tags.map(t => `<span class="tag">${t}</span>`).join('')}</div>
+      <div class="row" style="flex-wrap:wrap;margin-top:4px">
+        <button class="btn ${inList(p.name)?'ghost':'tape'} sm" data-act="addp" data-id="${id}">${inList(p.name) ? ic('check',16,2.6).replace('<svg','<svg style="stroke:currentColor"') + ' On your list' : 'Add to list'}</button>
+        <a class="btn ghost sm" href="${searchUrl(p.name)}" target="_blank" rel="noopener">Find stockists ${ic('ext',14).replace('<svg','<svg style="stroke:currentColor"')}</a>
+      </div></div></article>`).join('') : `<div class="card"><b>No matches</b><span class="muted">Try another word, or pick All.</span></div>`}
+    <p class="muted" style="margin:0;font-size:13px">Recommendations are matched to the problem. Nothing here is a paid placement. Always follow the label for coverage, drying times and safety.</p>
+  </main>${tabs('products')}`;
+}
+
+function vStores(){
+  const f = ui.sfilter;
+  const list = STORES.filter(s => f==='all' || s.kind===f);
+  const need = S.list.filter(i => !i.got).length;
+  return `${top('Where to buy')}
+  <main class="wrap">
+    <div class="card" style="flex-direction:row;align-items:center">
+      <span class="dot" style="background:var(--tape);color:var(--on-tape);width:36px;height:36px;border-radius:9px">${need}</span>
+      <span style="flex:1;font-size:14px">${need ? `item${need===1?'':'s'} still to buy on your list` : 'Your shopping list is empty'}</span>
+      <a href="#projects" style="font-weight:600;font-size:14px;min-height:44px;display:flex;align-items:center">View list</a>
+    </div>
+    <div class="tip">${ic('bulb',22)}<span style="font-size:14px"><b>Which shop?</b> Decorators’ merchants usually stock the widest range of specialist primers like Zinsser and give trade advice. DIY stores are best for tools and basics. Trade counters are quickest for click and collect.</span></div>
+    <div class="chips">${[['all','All'],['merchant','Decorators’ merchants'],['diy','DIY stores'],['trade','Trade counters']].map(([id,l]) => `<button class="chip" data-act="sfilter" data-f="${id}" aria-pressed="${f===id}">${l}</button>`).join('')}</div>
+    ${list.map(s => `<article class="card">
+      <div class="row" style="align-items:flex-start"><span class="dot" style="background:${s.kind==='merchant'?'var(--teal)':'var(--tape)'};color:${s.kind==='merchant'?'var(--on-teal)':'var(--on-tape)'}">${ic('pin',14,2.4).replace('<svg','<svg style="stroke:currentColor"')}</span>
+      <div style="flex:1;min-width:0"><b style="font-size:16px;display:block">${s.name}</b><small class="muted">${KIND[s.kind]}</small></div></div>
+      <span style="font-size:14px">${s.why}</span>
+      <a class="btn primary sm" href="${mapsUrl(s.name)}" target="_blank" rel="noopener">Find nearest on the map ${ic('ext',14).replace('<svg','<svg style="stroke:currentColor"')}</a>
+    </article>`).join('')}
+    <p class="muted" style="margin:0;font-size:13px">Opens Google Maps in a new tab. Live stock checks would come from retailer feeds in the full app.</p>
+  </main>${tabs('stores')}`;
+}
+
+function vProjects(){
+  const active = Object.keys(G).filter(g => done(g).length);
+  const timers = S.timers.slice().sort((a,b) => a.end - b.end);
+  const allSkills = Object.values(G).map(g => g.skill);
+  return `${top('My jobs')}
+  <main class="wrap">
+    <section class="stack">
+      <h2>In progress</h2>
+      ${active.length ? active.map(g => `<a class="card" href="#guide-${g}" style="text-decoration:none;color:inherit">
+        <div class="between"><b style="font-size:16px">${G[g].short}</b><span style="font-weight:600;color:var(--teal);font-size:14px">${pct(g)}%</span></div>
+        <div class="bar"><i style="width:${pct(g)}%"></i></div>
+        <small class="muted">${done(g).length} of ${G[g].steps.length} steps done</small></a>`).join('')
+      : `<div class="card"><b>No jobs started yet</b><span class="muted" style="font-size:14px">Start a guide and your progress shows up here.</span><a class="btn tape" href="#diagnose">Diagnose a wall</a></div>`}
+    </section>
+    ${timers.length ? `<section class="dark"><span class="eyebrow" style="color:var(--tape)">Drying timers</span>
+      ${timers.map(t => `<div class="between" style="font-size:15px;align-items:center"><span>${esc(t.label)}</span><span class="row" style="gap:8px"><b data-timer="${t.end}" style="font-variant-numeric:tabular-nums">${fmt(t.end-Date.now())}</b><button class="btn sm" data-act="stoptimer" data-id="${t.id}" aria-label="Remove timer ${esc(t.label)}" style="background:rgba(255,255,255,.1);color:var(--on-dark);min-height:36px;padding:0 10px">${ic('close',14,2.4).replace('<svg','<svg style="stroke:currentColor"')}</button></span></div>`).join('')}
+      <span class="sub" style="font-size:13px">${N ? 'We’ll send you a notification when each one is ready.' : 'Keep this page open to watch them count down.'}</span></section>` : ''}
+    <section class="card">
+      <div class="between"><h2>Shopping list</h2><span class="muted" style="font-size:13px">${S.list.filter(i=>i.got).length} of ${S.list.length} got</span></div>
+      ${S.list.length ? `<div>${S.list.map((it,k) => `<label class="check ${it.got?'done':''}" for="sl-${k}"><input type="checkbox" id="sl-${k}" data-act="got" data-k="${k}" ${it.got?'checked':''}><span>${esc(it.name)}</span><button class="icon-btn" data-act="rm" data-k="${k}" aria-label="Remove ${esc(it.name)}" style="width:36px;height:36px;border:none;background:transparent">${ic('close',14,2.4)}</button></label>`).join('')}</div>
+        <div class="row" style="flex-wrap:wrap"><button class="btn ghost sm" data-act="copylist" style="flex:1">${ic('copy',16).replace('<svg','<svg style="stroke:currentColor"')} ${N ? 'Share list' : 'Copy list'}</button><a class="btn primary sm" href="#stores" style="flex:1">Where to buy</a></div>`
+      : `<span class="muted" style="font-size:14px">Add products from a guide’s kit list or the Products tab.</span>`}
+    </section>
+    <section class="stack">
+      <div class="between"><h2>Skills</h2><span class="muted" style="font-size:13px">${S.skills.length} of ${allSkills.length} · ${levelName[S.level] || 'Level not set'}</span></div>
+      <div class="chips">${allSkills.map(s => `<span class="badge ${S.skills.includes(s)?'on':''}">${S.skills.includes(s) ? ic('check',14,2.6).replace('<svg','<svg style="stroke:currentColor"') : ''}${s}</span>`).join('')}</div>
+    </section>
+    <button class="btn ghost" data-act="reset">Reset demo data</button>
+  </main>${tabs('projects')}`;
+}
+
+function levelSheet(){
+  const opts = [['beginner','Beginner','First time decorating. Explain everything.'],['improver','Improver','Done a few rooms. Keep it clear but quick.'],['pro','Pro','Trade or very confident. Give me the detail.']];
+  return `<div class="sheet" role="dialog" aria-modal="true" aria-labelledby="lvl-h"><div class="panel wrap">
+    <h2 id="lvl-h" style="font-size:24px">How confident are you with decorating?</h2>
+    <p class="muted" style="margin:0">We’ll pitch every guide at your level. You can switch any step between Beginner and Pro.</p>
+    ${opts.map(([id,l,d]) => `<button class="opt" data-act="setlevel" data-l="${id}" aria-pressed="${S.level===id}"><span class="t"><b>${l}</b><small>${d}</small></span></button>`).join('')}
+  </div></div>`;
+}
+
+// ---------- render ----------
+let confirmReset = false;
+function render(){
+  const r = route(); let html;
+  let m;
+  if (r === 'home') html = vHome();
+  else if (r === 'diagnose') html = vDiagnose();
+  else if (r === 'products') html = vProducts();
+  else if (r === 'stores') html = vStores();
+  else if (r === 'projects') html = vProjects();
+  else if ((m = r.match(/^guide-([a-z]+)$/))) html = vGuide(m[1]);
+  else if ((m = r.match(/^step-([a-z]+)-(\d+)$/))) html = vStep(m[1], +m[2]);
+  else if ((m = r.match(/^done-([a-z]+)$/)) && G[m[1]]) html = vDone(m[1]);
+  else html = vHome();
+  document.getElementById('app').innerHTML = html;
+  document.getElementById('layer').innerHTML = S.level ? '' : levelSheet();
+}
+let lastRoute = route();
+window.addEventListener('hashchange', () => {
+  const r = route();
+  if (!r.startsWith('step-') || !lastRoute.startsWith('step-') || r.split('-')[1] !== lastRoute.split('-')[1]) ui.mode = null;
+  lastRoute = r; render(); window.scrollTo(0,0);
+});
+
+// ---------- events ----------
+document.addEventListener('click', (e) => {
+  const goEl = e.target.closest('[data-go]'); if (goEl) { go(goEl.dataset.go); return; }
+  const el = e.target.closest('[data-act]'); if (!el) return;
+  const a = el.dataset.act;
+  if (el.tagName === 'INPUT') return;
+  if (a === 'level') { document.getElementById('layer').innerHTML = levelSheet(); }
+  else if (a === 'setlevel') { S.level = el.dataset.l; save(); document.getElementById('layer').innerHTML = ''; render(); toast('Level set to ' + levelName[S.level]); }
+  else if (a === 'notify') { S.notify = !S.notify; save(); render(); if (S.notify) toast('We’ll let you know when Woodwork is ready'); }
+  else if (a === 'pick') { ui.quiz = {problem: el.dataset.id, answer: null}; render(); const t = document.querySelector('.card .eyebrow') || document.getElementById('plan'); t && t.closest('section').scrollIntoView({behavior:'smooth', block:'start'}); }
+  else if (a === 'answer') { ui.quiz.answer = +el.dataset.i; render(); const p = document.getElementById('plan'); p && p.scrollIntoView({behavior:'smooth', block:'start'}); }
+  else if (a === 'addmissing') { const g = G[el.dataset.g]; let n = 0; g.kit.forEach(k => { const nm = kitName(k); if (!S.have[el.dataset.g + '|' + nm] && !inList(nm)) { addToList(nm); n++; } }); save(); toast(n ? n + ' added to your shopping list' : 'Already on your list'); }
+  else if (a === 'mode') { ui.mode = el.dataset.m; render(); }
+  else if (a === 'starttimer') { const g = el.dataset.g, i = +el.dataset.i, s = G[g].steps[i]; S.timers = S.timers.filter(t => t.id !== g + '-' + i); const end = Date.now() + s.timer*60000; S.timers.push({id: g + '-' + i, label: s.timerLabel, end}); if (N) N.scheduleTimer(g + '-' + i, s.timerLabel, end); save(); render(); toast(N ? 'Timer started. We’ll notify you when it’s done.' : 'Timer started. It’s in My jobs too.'); }
+  else if (a === 'stoptimer') { if (N) N.cancelTimer(el.dataset.id); S.timers = S.timers.filter(t => t.id !== el.dataset.id); save(); render(); }
+  else if (a === 'next') { const g = el.dataset.g, i = +el.dataset.i; const d = done(g); if (!d.includes(i)) d.push(i); S.progress[g] = d;
+    if (i >= G[g].steps.length - 1) { if (!S.skills.includes(G[g].skill)) S.skills.push(G[g].skill); S.last = null; save(); go('done-' + g); }
+    else { save(); go('step-' + g + '-' + (i + 2)); } }
+  else if (a === 'speak') { if (N) { N.speak(document.querySelector('h1.h1').textContent + '. ' + document.getElementById('instr').innerText); return; } try { const s = new SpeechSynthesisUtterance(document.querySelector('h1.h1').textContent + '. ' + document.getElementById('instr').innerText); speechSynthesis.cancel(); speechSynthesis.speak(s); } catch(err) { toast('Read-aloud isn’t available here'); } }
+  else if (a === 'pfilter') { ui.pfilter = el.dataset.f; render(); }
+  else if (a === 'sfilter') { ui.sfilter = el.dataset.f; render(); }
+  else if (a === 'addp') { const n = P[el.dataset.id].name; if (inList(n)) { S.list = S.list.filter(i => i.name !== n); toast('Removed from your list'); } else { addToList(n); toast('Added to your shopping list'); } save(); render(); }
+  else if (a === 'addsys') { ['zmk','bin','pw'].forEach(id => addToList(P[id].name)); save(); render(); toast('Mould system added to your list'); }
+  else if (a === 'rm') { e.preventDefault(); S.list.splice(+el.dataset.k, 1); save(); render(); }
+  else if (a === 'copylist') { const txt = 'Shopping list\n' + S.list.filter(i => !i.got).map(i => '- ' + i.name).join('\n');
+    if (N) { N.share(txt); return; } const ok = () => toast('List copied'); try { navigator.clipboard.writeText(txt).then(ok, () => toast('Couldn’t copy. Long-press the list to select it.')); } catch(err) { toast('Couldn’t copy. Long-press the list to select it.'); } }
+  else if (a === 'reset') { if (!confirmReset) { confirmReset = true; el.textContent = 'Tap again to clear everything'; setTimeout(() => { confirmReset = false; }, 4000); return; }
+    confirmReset = false; if (N) S.timers.forEach(t => N.cancelTimer(t.id)); S = JSON.parse(JSON.stringify(defaults)); save(); ui.photo = null; render(); toast('Demo data cleared'); }
+});
+document.addEventListener('change', (e) => {
+  const el = e.target;
+  if (el.id === 'photo-in' && el.files && el.files[0]) { const fr = new FileReader(); fr.onload = () => { ui.photo = fr.result; render(); }; fr.readAsDataURL(el.files[0]); return; }
+  const a = el.dataset && el.dataset.act;
+  if (a === 'have') { S.have[el.dataset.key] = el.checked; save(); render(); }
+  else if (a === 'got') { S.list[+el.dataset.k].got = el.checked; save(); render(); }
+});
+document.addEventListener('input', (e) => {
+  if (e.target.dataset.act === 'search') { ui.q = e.target.value; const pos = e.target.selectionStart; render(); const s = document.getElementById('psearch'); s.focus(); try { s.setSelectionRange(pos,pos); } catch(err) {} }
+});
+
+// live timers
+setInterval(() => { document.querySelectorAll('[data-timer]').forEach(n => { n.textContent = fmt(+n.dataset.timer - Date.now()); }); }, 1000);
+
+render();
+})();
+</script>
+</body>
+</html>
