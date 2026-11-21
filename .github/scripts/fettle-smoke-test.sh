@@ -7,7 +7,16 @@ mkdir -p screenshots
 fail=0
 
 shot() { adb exec-out screencap -p > "screenshots/$1.png"; }
-dump() { adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; adb shell cat /sdcard/ui.xml > "screenshots/$1.xml"; }
+dump() { # uiautomator sometimes returns an empty tree on a busy emulator, so retry
+  for d in 1 2 3 4 5; do
+    adb shell rm -f /sdcard/ui.xml
+    adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1
+    adb shell cat /sdcard/ui.xml > "screenshots/$1.xml" 2>/dev/null
+    grep -q '<node' "screenshots/$1.xml" && return
+    sleep 2
+  done
+  echo "  (screen reader returned nothing for $1)"
+}
 texts() { grep -o '\(text\|content-desc\)="[^"]\+"' "screenshots/$1.xml" | head -30 | sed 's/^/    /'; }
 expect() { # name, text: retries while the WebView's accessibility tree catches up
   for try in 1 2 3 4; do
