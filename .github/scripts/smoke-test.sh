@@ -23,6 +23,16 @@ tap_text() {
   set -- $(echo "$hit" | grep -o 'bounds=.*' | grep -o '[0-9]\+')
   adb shell input tap $(( ($1 + $3) / 2 )) $(( ($2 + $4) / 2 ))
 }
+# Same as tap_text, matching the element's accessibility label (content-desc), e.g. icon-only buttons.
+tap_desc() {
+  adb shell uiautomator dump /sdcard/tap.xml >/dev/null 2>&1
+  adb pull /sdcard/tap.xml "$OUT/tap.xml" >/dev/null 2>&1 || return 1
+  local hit
+  hit=$(grep -o "content-desc=\"$1\"[^>]*bounds=\"\[[0-9]*,[0-9]*\]\[[0-9]*,[0-9]*\]\"" "$OUT/tap.xml" | head -1)
+  [ -z "$hit" ] && return 1
+  set -- $(echo "$hit" | grep -o 'bounds=.*' | grep -o '[0-9]\+')
+  adb shell input tap $(( ($1 + $3) / 2 )) $(( ($2 + $4) / 2 ))
+}
 check_crash() {
   if adb logcat -d -b crash | grep -q "$PKG"; then
     adb logcat -d -b crash
@@ -211,7 +221,7 @@ else
   echo "widgets offered:"; grep -o 'text="[^"]*"' "$OUT/widget-picker.xml" | head -40
   adb logcat -c || true
   # Prefer simple clock widgets (no settings screen of their own).
-  if tap_text "Clock: Analog" || tap_text "Chrome: Chrome search" || tap_text "Clock[^\"]*"; then
+  if tap_text "Chrome: Chrome search" || tap_text "Chrome: Chrome Dino" || tap_text "Clock: Analog"; then
     sleep 4
     echo "after choosing: $(resumed)"
     shot 05f2-after-choosing
@@ -219,7 +229,7 @@ else
     { tap_text "Create" || tap_text "CREATE"; } && { sleep 3; echo "allowed binding; now: $(resumed)"; } || true
     # If the widget opened its own settings screen, accept it so the widget is added.
     if ! resumed | grep -q "$PKG"; then
-      tap_text "Done" || tap_text "DONE" || tap_text "OK" || tap_text "Save" || true
+      tap_text "Done" || tap_text "DONE" || tap_text "OK" || tap_text "Save" || tap_desc "Done" || tap_desc "Save" || true
       sleep 2
       echo "after widget settings: $(resumed)"
     fi
