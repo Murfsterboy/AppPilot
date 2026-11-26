@@ -17,6 +17,20 @@ cd tools/claude-skills
 Requires `python3`. On Windows, run it from Git Bash or WSL, or copy the
 `model-advisor` folder to `%USERPROFILE%\.claude\skills\` by hand.
 
+### Install for the phone app, claude.ai and cloud sessions
+
+Claude Code on your phone runs in cloud sessions, which start fresh each time, so
+`install.sh` doesn't apply. Upload the skill to your claude.ai account instead. It
+then syncs into every cloud session, in every repo.
+
+1. `python3 package.py` builds `dist/model-advisor.zip`.
+2. In claude.ai, open **Settings**, go to the **Skills** section and upload the zip.
+3. Optional: set `MODEL_ADVISOR_PLAN=pro|max5|max20|api` as an environment variable
+   on your cloud environment, so it stops asking for your plan every session.
+
+In cloud sessions, calibration only lasts for the session. Long-term calibration
+builds up on your computer.
+
 ### Use
 
 | Command | What it does |

@@ -34,6 +34,12 @@ def load_config() -> dict:
     return json.loads(f.read_text()) if f.exists() else {}
 
 
+def current_plan(cfg: dict) -> str | None:
+    """Saved plan, else MODEL_ADVISOR_PLAN (set it on a cloud environment, where
+    ~/.claude is fresh every session)."""
+    return cfg.get("plan") or os.environ.get("MODEL_ADVISOR_PLAN") or None
+
+
 def save_config(cfg: dict) -> None:
     (data_dir() / "config.json").write_text(json.dumps(cfg, indent=2) + "\n")
 

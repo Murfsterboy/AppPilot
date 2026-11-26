@@ -120,8 +120,7 @@ def pick_record(history: list[dict], session: str, cwd: str) -> dict | None:
 
 
 def stats(models: dict, history: list[dict]) -> None:
-    cfg = ac.load_config()
-    plan = cfg.get("plan")
+    plan = ac.current_plan(ac.load_config())
     done = [r for r in history if r.get("status") == "calibrated"]
     print(f"Plan: {models['plans'][plan]['label'] if plan else 'not set'} · "
           f"{len(done)} calibrated task(s), {sum(r.get('status') == 'pending' for r in history)} pending\n")

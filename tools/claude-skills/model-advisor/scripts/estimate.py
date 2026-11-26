@@ -111,7 +111,10 @@ def main() -> int:
         ac.save_config(cfg)
         print(f"Plan set to {models['plans'][args.set_plan]['label']}.")
         return 0
-    plan = cfg.get("plan")
+    plan = ac.current_plan(cfg)
+    if plan and plan not in plans:
+        print(f"Unknown plan '{plan}' (MODEL_ADVISOR_PLAN?). Use one of: {', '.join(plans)}.")
+        return 3
     if args.show_plan:
         print(f"Plan: {models['plans'][plan]['label'] if plan else 'not set'}")
         return 0

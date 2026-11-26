@@ -6,3 +6,4 @@ local.properties
 .DS_Store
 captures/
 __pycache__/
+tools/claude-skills/dist/

@@ -30,7 +30,10 @@ tool calls and well under 20K tokens. The advice must cost far less than the wor
 If the estimator prints `PLAN_NOT_SET` (exit code 3), ask the user which plan they
 are on (Pro / Max 5x / Max 20x / API pay-per-token), run
 `python3 "${CLAUDE_SKILL_DIR}/scripts/estimate.py" --set-plan <pro|max5|max20|api>`,
-then run the estimate again.
+then run the estimate again. In a cloud session (`CLAUDE_CODE_REMOTE=true`, e.g.
+started from the phone app), the saved plan is lost when the session ends. Tell the
+user once that they can set `MODEL_ADVISOR_PLAN=<plan>` as an environment variable on
+their cloud environment so they aren't asked again.
 
 ### 1. Size the work (max ~5 tool calls)
 - `git ls-files | wc -l` plus a Glob/Grep for the files, symbols or features the task names.
@@ -102,3 +105,5 @@ How to recommend:
    - `NO_PENDING_ESTIMATE`: say that calibration needs `/model-advisor <task>` to run
      first, in the same session as the task.
    - `NO_WORK_FOUND`: say to run calibrate after the task, in the session it ran in.
+4. In a cloud session (`CLAUDE_CODE_REMOTE=true`), say that this calibration only
+   lasts for the current session. Lasting calibration builds up on their computer.
